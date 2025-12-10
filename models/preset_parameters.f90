@@ -65,6 +65,7 @@ subroutine preset_parameters
   extended_boundary = .false.
   j_cutoff_rcoord = 99.0
   j_cutoff_sig = 0.025
+  bloating_factor = 1.0d0
   
   ! Stellarator SBC defaults
   vpar_sbc_enable = .false.
