@@ -27,6 +27,7 @@ real*8  :: tol, delta_phi, Zjac, psi_s, psi_t, R_in, Z_in, R_out, Z_out, Rmin, R
 real*8  :: small_delta, small_delta_s, small_delta_t, delta_phi_local, delta_phi_step
 real*8  :: atmp, cur_pert
 real*8  :: psi_out
+real*8  :: R_axis_loc, Z_axis_loc
 integer :: ierr, checked_elms
 
 
@@ -204,7 +205,8 @@ endif
 !$omp shared(node_list, element_list, n_lines, R_start, Z_start, P_start, n_turn, n_phi, delta_phi, element_neighbours, ES, iplot_type) &
 !$omp private(i_lines, ip, R_out, Z_out, i_elm, s_out, t_out, ifail, R_line, Z_line, p_line, s_line, t_line, i_turn, i_phi, &
 !$omp         delta_phi_local, i_steps, delta_phi_step, delta_s, delta_t, s_mid, t_mid, p_mid, small_delta_s, small_delta_t, &
-!$omp         small_delta, R_in, Z_in, i_elm_prev, i_elm_tmp, R, Z, psi_out, Rp, Zp, Tp, Pp, i, checked_elms)
+!$omp         small_delta, R_in, Z_in, i_elm_prev, i_elm_tmp, R, Z, psi_out, Rp, Zp, Tp, Pp, i, checked_elms, &
+!$omp         R_axis_loc, Z_axis_loc)
 
 ! --- Trace the fieldlines
 !$omp do
@@ -431,8 +433,13 @@ L_IL: do i_lines=1,n_lines
 
     Rp(ip) = R_line
     Zp(ip) = Z_line
-    Tp(ip)  = atan2( Z_line - ES%Z_axis, R_line - ES%R_axis)
-    ! TODO: Does this need to be updated to use the R_axis and Z_axis in the plane considered?
+#if STELLARATOR_MODEL
+    call interp_RZP(node_list, element_list, 1, 0.d0, 0.d0, p_line, R_axis_loc, Z_axis_loc)
+#else
+    R_axis_loc = ES%R_axis
+    Z_axis_loc = ES%Z_axis
+#endif
+    Tp(ip)  = atan2( Z_line - Z_axis_loc, R_line - R_axis_loc)
     Pp(ip)  = get_psi_n(psi_out, Z_line)
 
     if (i_elm .eq. 0) exit
