@@ -129,9 +129,17 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 weights_per_family, autodistribute_ranks,           &
                 ranks_per_family,                                   &
                 use_manual_random_seed, manual_seed,                &
-                use_fixed_rng_value, fixed_rng_value                                 
+                use_fixed_rng_value, fixed_rng_value,                &
+                tstep_particles, nstep_particles,                   &
+                nsubstep_particles, nout_particles,                 &
+                restart_particles, init_particles_only,             &
+                filter_perp,    filter_hyper,    filter_par,        &
+                filter_perp_n0, filter_hyper_n0, filter_par_n0,     &
+                apply_dirichlet_proj,                               &
+                n_part_groups, part_group_configs,                  &
+                part_groups_in_use, valves, fluid_configs
 
-                
+
 namelist /dommcoef/  R_domm, dcoef
 
 if (my_id .eq. 0) then
