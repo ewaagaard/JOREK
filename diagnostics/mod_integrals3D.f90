@@ -1247,6 +1247,8 @@ aux_q0    = 0.d0; aux_jx0   = 0.d0; aux_jy0   = 0.d0; aux_jz0   = 0.d0; aux_jz0_
 #else
         VK_tot = VK_tot + r0 * (dudx**2 + dudy**2) * BigR**2 * xjac * BigR * wst * delta_phi
         VM_tot = VM_tot + (dpsidx**2+dpsidy**2)/BigR**2 * xjac * BigR * wst * delta_phi
+        VB_tot = VB_tot + 2.0*r0*T0 / BB2 * xjac * BigR * wst * delta_phi
+        mag_pres_tot = mag_pres_tot + BB2/2 * xjac * BigR * wst * delta_phi
 #endif
         J2_tot = J2_tot + eta_T_ohm *(ZJ0/BigR)**2.d0 * xjac * BigR * wst * delta_phi
         
@@ -1506,6 +1508,8 @@ aux_q0    = 0.d0; aux_jx0   = 0.d0; aux_jy0   = 0.d0; aux_jz0   = 0.d0; aux_jz0_
 #else
           VK_int = VK_int + r0 * (dudx**2 + dudy**2) * BigR**2 * xjac * BigR * wst * delta_phi
           VM_int = VM_int + (dpsidx**2+dpsidy**2)/BigR**2 * xjac * BigR * wst * delta_phi
+          VB_int = VB_int + 2.0*r0*T0 / BB2 * xjac * BigR * wst * delta_phi
+          mag_pres_int = mag_pres_int + BB2/2 * xjac * BigR * wst * delta_phi
 #endif
           J2_int = J2_int + eta_T_ohm * (ZJ0/BigR)**2.d0 * xjac * BigR * wst * delta_phi
 
@@ -1568,6 +1572,8 @@ aux_q0    = 0.d0; aux_jx0   = 0.d0; aux_jy0   = 0.d0; aux_jz0   = 0.d0; aux_jz0_
 #else
           VK_ext = VK_ext + r0 * (dudx**2 + dudy**2) * BigR**2 * xjac * BigR * wst * delta_phi
           VM_ext = VM_ext + (dpsidx**2+dpsidy**2)/BigR**2 * xjac * BigR * wst * delta_phi
+          VB_ext = VB_ext + 2.0*r0*T0 / BB2 * xjac * BigR * wst * delta_phi
+          mag_pres_ext = mag_pres_ext + BB2/2 * xjac * BigR * wst * delta_phi
 #endif
           J2_ext = J2_ext + eta_T_ohm * (ZJ0/BigR)**2.d0 * xjac * BigR * wst * delta_phi
 
@@ -2397,7 +2403,7 @@ Bgeo         = F0 / R_geo
 current_MA   = current_in * 1.d-6 * (1.d0/fact_mu0) * (1/mu_zero)
 current_R    = current_R_in * (1.d0/fact_mu0) * (1/mu_zero)
 beta_p       = 4.d0 * pressure_in/(R_geo * current_in**2 )     * (GAMMA-1)*fact_mu0
-beta_t       = 2.d0 * pressure_in / Volume / Bgeo**2           * (GAMMA-1)/fact_mu0
+beta_t       = 2.d0 * pressure_in / volume_in / Bgeo**2           * (GAMMA-1)/fact_mu0
 beta_n       = 100.d0 * beta_t * Bgeo/current_MA * ES%LCFS_a
 li3          = 2.d0 * mag_in /0.5  /( current_in**2 * R_geo ) * fact_mu0
 li3_tot      = 2.d0 * mag_tot/0.5  /(current_tot**2 * R_geo ) * fact_mu0
@@ -2683,8 +2689,8 @@ if (my_id .eq. 0) then
       case ( 'area' )
         res(iexpr) = area 
 
-      case ( 'Volume' )
-        res(iexpr) = Volume
+      case ( 'volume' )
+        res(iexpr) = volume_in
 
       case ( 'q02' )
         res(iexpr) = q02 
@@ -2805,7 +2811,7 @@ if (my_id .eq. 0) then
 #endif
   write(*,'(A,2es14.6,A)') ' Volume_in                       : ',xt,Volume_in,' [m^3]'
   write(*,'(A,2es14.6,A)') ' Volume_ext                      : ',xt,Volume_ext,' [m^3]'
-  write(*,'(A,2es14.6,A)') ' Volume                          : ',xt,Volume,' [m^3]'
+  write(*,'(A,2es14.6,A)') ' Volume                          : ',xt,volume,' [m^3]'
   write(*,'(A,2es14.6,A)') ' Surface area                    : ',xt,surface_area, '[m^2]'
   write(*,'(A,4es14.6,A)') ' density  (total/in/out)         : ',xt,density_tot,  density_in,  density_out,'[ 10^20/m^3]'
   write(*,'(A,4es14.6,A)') ' pressure (total/in/out)         : ',xt,pressure/1.d6, pressure_in/1.d6, pressure_out/1.d6,' [MJ]'
@@ -2936,7 +2942,7 @@ if (my_id .eq. 0) then
     part_src_in_t(index_now)         = source_in
     part_src_out_t(index_now)        = source_out
     area_t(index_now)                = area
-    volume_t(index_now)              = volume
+    volume_t(index_now)              = volume_in
     mag_ener_src_tot(index_now)      = mag_source_tot
     beta_n_t(index_now)              = beta_n
     beta_t_t(index_now)              = beta_t
