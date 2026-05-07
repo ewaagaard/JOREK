@@ -224,6 +224,29 @@ module phys_module
   logical :: extended_boundary    !< Choose if extended boundary conditions (Biot-Savart version) should be used, default (false) is grad_chi with Dommaschk potentials
   real*8  :: j_cutoff_rcoord      !< Radial location from which the current is set to zero as it approaches the boundary - rcoord corresponds to the normalised toroidal flux
   real*8  :: j_cutoff_sig         !< Radial width over which the current is ramped down to zero towards the boundary
+  
+  ! Stellarator sheath boundary condition (SBC) parameters
+  logical :: vpar_sbc_enable      !< Enable angle-dependent v_par BC at boundary (stellarator SBC)
+  real*8  :: vpar_sbc_alpha0      !< Transition angle in degrees for tanh smoothing (default 5.0)
+  real*8  :: vpar_sbc_strength    !< Strength factor 0-1 for ramping up BC (default 1e-3 for testing)
+  real*8  :: vpar_sbc_angle_scale !< Artificial scaling of incidence angle for testing (default 1.0)
+  logical :: vpar_sbc_smooth_sign !< Use smooth sign formulation to avoid Gibbs (default .false.)
+  
+  ! Particle flux SBC (weak form BC for density equation)
+  logical :: particle_flux_sbc_enable  !< Enable particle flux BC at boundary
+  real*8  :: particle_flux_sbc_strength !< Strength factor for particle flux BC (default 0.0)
+  real*8  :: particle_flux_sbc_angle_scale !< Artificial scaling of |ndotB| for testing (default 1.0)
+
+  ! Heat flux SBC (weak form BC for temperature equation)
+  logical :: heat_flux_sbc_enable  !< Enable heat flux BC at boundary
+  real*8  :: heat_flux_sbc_strength !< Strength factor for heat flux BC (default 0.0)
+  real*8  :: heat_flux_sbc_angle_scale !< Artificial scaling of |ndotB| for testing (default 1.0)
+
+  ! n.B evolution control
+  logical :: ndotB_evolving  !< If true, recompute n.B each timestep. If false, freeze after first computation.
+  
+  ! SBC local temperature interpolation
+  logical :: sbc_use_local_T  !< If true, use interpolated local T at boundary for sound speed. If false, use T_0.
 
   !> Points used as blocks to extend grid into complex wall structures, see https://www.jorek.eu/wiki/doku.php?id=wallgrid_tutorial
   real*8  :: surface_cross_tol                                                  !< Tolerance when looking for crossing of polar lines and surfaces, needs to be > 1.0

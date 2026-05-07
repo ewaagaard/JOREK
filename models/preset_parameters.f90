@@ -65,6 +65,29 @@ subroutine preset_parameters
   extended_boundary = .false.
   j_cutoff_rcoord = 99.0
   j_cutoff_sig = 0.025
+  
+  ! Stellarator SBC defaults
+  vpar_sbc_enable = .false.
+  vpar_sbc_alpha0 = 5.d0      ! 5 degree transition angle
+  vpar_sbc_strength = 1.d0   ! No scaling, can use e.g. 1.d-3  weak BC for testing
+  vpar_sbc_angle_scale = 1.d0 ! No scaling (set > 1 to artificially increase angles for testing)
+  vpar_sbc_smooth_sign = .false. ! Use original sign()*tanh(|alpha|) formula
+  
+  ! Particle flux SBC defaults
+  particle_flux_sbc_enable = .false.
+  particle_flux_sbc_strength = 0.d0  ! Start with zero (disabled)
+  particle_flux_sbc_angle_scale = 1.d0 ! No scaling (set > 1 to artificially increase |ndotB|)
+
+  ! Heat flux SBC defaults
+  heat_flux_sbc_enable = .false.
+  heat_flux_sbc_strength = 0.d0  ! Start with zero (disabled)
+  heat_flux_sbc_angle_scale = 1.d0 ! No scaling (set > 1 to artificially increase |ndotB|)
+
+  ! n.B evolution control
+  ndotB_evolving = .false.  ! Freeze n.B after first computation (default). Set to .true. for evolving fields.
+
+  ! SBC local temperature interpolation
+  sbc_use_local_T = .false.  ! Use local edge T for sound speed. If .false., use T_0 (core default).
 
   freeboundary_equil = .false. ! use free or fixed boundary equilibrium
   freeboundary       = .false. ! use free or fixed boundary?
@@ -75,6 +98,7 @@ subroutine preset_parameters
   bc_natural_flux    = .false.! boundary conditions for flux surface boundaries (2 and 3)
   bc_natural_open    = .false. ! use sheath (Bohm) boundary conditions
 
+  gamma              = 1.6666666666666667d0  ! ratio of specific heats (5/3) for adiabatic flow
   gamma_sheath       = 4.5d0  ! sheath transmission factor (single fluid) in the JOREK definition
   gamma_stangeby     = -1.d99 ! sheath transmission factor (single fluid) given by Stangeby
   gamma_sheath_e     = 3.00d0 ! sheath transmission factor (electron fluid) in the JOREK definition
