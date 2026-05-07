@@ -31,12 +31,14 @@ contains
 
     use mod_assembly, only : boundary_conditions_add_one_entry, boundary_conditions_add_RHS
 
-    use phys_module, only: F0, GAMMA, bc_natural_open
+    use phys_module, only: F0, GAMMA, bc_natural_open, &
+                           loop_voltage, tstep, central_density, central_mass
     use vacuum, only: is_freebound
     use mpi_mod
     use mod_locate_irn_jcn
     use mod_integer_types
     use data_structure
+    use constants, only: MU_ZERO, ATOMIC_MASS_UNIT
 
     implicit none
 
@@ -130,6 +132,22 @@ contains
                       endif
 
                    enddo
+                   
+                   ! Apply loop voltage to drive psi evolution (n=0 mode at boundary)
+                   ! Physics: loop_voltage drives Ohmic current via Faraday's law:
+                   !   d(psi)/dt = -V_loop => psi(t) = psi(0) - V_loop * t
+                   if ( loop_voltage .ne. 0.d0 ) then
+                      if ( in == 1 ) then  ! n=0 mode only
+                         if ( (.not. is_freebound(in, var_psi)) ) then
+                            index_node = node_list%node(inode)%index(1)
+                            call boundary_conditions_add_RHS(       &
+                                      index_node, var_psi, in,      &
+                                      index_min, index_max,         &
+                                      RHS_loc, zbig*loop_voltage*sqrt(MU_ZERO*central_density*central_mass*ATOMIC_MASS_UNIT*1.d20)*tstep, &
+                                      a_mat%i_tor_min, a_mat%i_tor_max)
+                         endif
+                      endif
+                   endif
 
                 enddo
              endif
