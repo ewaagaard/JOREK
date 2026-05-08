@@ -133,9 +133,6 @@ if (my_id .ne. 0) then
     call MPI_UNPACK(buffer,bufsize,position,anode%pressure       ,n_degrees                        ,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
     call MPI_UNPACK(buffer,bufsize,position,anode%j_field        ,n_coord_tor*n_degrees*(n_dim+1)  ,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
     call MPI_UNPACK(buffer,bufsize,position,anode%b_field        ,n_coord_tor*n_degrees*(n_dim+1)  ,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
-#elif defined(USE_EXT_FIELD)
-    ! Model183 with USE_EXT_FIELD: unpack b_field for boundary conditions
-    call MPI_UNPACK(buffer,bufsize,position,anode%b_field        ,n_coord_tor*n_degrees*(n_dim+1)  ,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
 #endif
 #ifndef USE_DOMM
 #ifdef USE_EXT_FIELD
