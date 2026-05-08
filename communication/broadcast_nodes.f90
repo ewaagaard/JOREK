@@ -74,9 +74,6 @@ if (my_id .eq. 0) then
     call MPI_PACK(anode%pressure       ,n_degrees,MPI_DOUBLE_PRECISION,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
     call MPI_PACK(anode%j_field        ,n_coord_tor*n_degrees*(n_dim+1),MPI_DOUBLE_PRECISION,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
     call MPI_PACK(anode%b_field        ,n_coord_tor*n_degrees*(n_dim+1),MPI_DOUBLE_PRECISION,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
-#elif defined(USE_EXT_FIELD)
-    ! Model183 with USE_EXT_FIELD: broadcast b_field for boundary conditions
-    call MPI_PACK(anode%b_field        ,n_coord_tor*n_degrees*(n_dim+1),MPI_DOUBLE_PRECISION,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
 #endif
 #ifndef USE_DOMM
 #ifdef USE_EXT_FIELD
@@ -84,9 +81,6 @@ if (my_id .eq. 0) then
 #else
     call MPI_PACK(anode%chi_correction ,n_coord_tor*n_degrees          ,MPI_DOUBLE_PRECISION,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
 #endif
-#else
-    ! USE_DOMM: b_vac_field needed on all ranks for SBC n.B computation
-    call MPI_PACK(anode%b_vac_field    ,n_coord_tor*n_degrees*(n_dim+1),MPI_DOUBLE_PRECISION,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
 #endif
     call MPI_PACK(anode%j_source       ,n_tor*n_degrees,MPI_DOUBLE_PRECISION,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
 #elif fullmhd
@@ -140,9 +134,6 @@ if (my_id .ne. 0) then
 #else
     call MPI_UNPACK(buffer,bufsize,position,anode%chi_correction ,n_coord_tor*n_degrees            ,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
 #endif
-#else
-    ! USE_DOMM: unpack b_vac_field for SBC n.B computation
-    call MPI_UNPACK(buffer,bufsize,position,anode%b_vac_field    ,n_coord_tor*n_degrees*(n_dim+1)  ,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
 #endif
     call MPI_UNPACK(buffer,bufsize,position,anode%j_source       ,n_tor*n_degrees                  ,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
 #elif fullmhd

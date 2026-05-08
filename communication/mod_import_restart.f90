@@ -1291,11 +1291,6 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
   call HDF5_array2D_reading(file_id,t_pressure, 'pressure')
   call HDF5_array4D_reading(file_id,t_j_field,  'j_field')
   call HDF5_array4D_reading(file_id,t_b_field,   'b_field')
-#elif defined(USE_EXT_FIELD)
-  ! Model183 with USE_EXT_FIELD: load b_field from model180-generated equilibrium
-  ! This provides full equilibrium field (vacuum + plasma response) for boundary conditions
-  call HDF5_array4D_reading(file_id,t_b_field,   'b_field')
-  write(*,'(A,E15.6,E15.6)') 'DEBUG: b_field loaded, min/max=', minval(t_b_field), maxval(t_b_field)
 #endif
 
 #ifdef WITH_TiTe
@@ -1340,8 +1335,6 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
 #else
   call HDF5_array3D_reading(file_id,t_chi_correction, 'chi_correction')
 #endif
-#else
-  call HDF5_array4D_reading(file_id,t_b_vac_field,   'b_vac_field')
 #endif
 
   call HDF5_array3D_reading(file_id,t_j_source, 'j_source')
@@ -1436,9 +1429,6 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
     node_list%node(i)%pressure = t_pressure(i,:)
     node_list%node(i)%b_field  = t_b_field(i,:,:,:)
     node_list%node(i)%j_field  = t_j_field(i,:,:,:)
-#elif defined(USE_EXT_FIELD)
-    ! Model183 with USE_EXT_FIELD: assign b_field for use in boundary conditions
-    node_list%node(i)%b_field  = t_b_field(i,:,:,:)
 #endif
 #ifndef USE_DOMM
 #ifdef USE_EXT_FIELD
@@ -1446,8 +1436,6 @@ subroutine import_hdf5_restart(node_list, element_list, filename, format_rst, er
 #else
     node_list%node(i)%chi_correction  = t_chi_correction(i,:,:)
 #endif
-#else
-    node_list%node(i)%b_vac_field     = t_b_vac_field(i,:,:,:)
 #endif
     node_list%node(i)%j_source = 0.d0 
     do m=1,n_tor_tmp,2

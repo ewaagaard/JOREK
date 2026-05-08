@@ -496,12 +496,10 @@ subroutine export_hdf5_restart(node_list,element_list,filename,aux_node_list)
 
 #if STELLARATOR_MODEL
      t_r_tor_eq(i,:)           = node_list%node(i)%r_tor_eq
-#if JOREK_MODEL == 180 || defined(USE_EXT_FIELD)
-     t_b_field(i,:,:,:)        = node_list%node(i)%b_field
-#endif
 #if JOREK_MODEL == 180
      t_pressure(i,:)           = node_list%node(i)%pressure
      t_j_field(i,:,:,:)        = node_list%node(i)%j_field
+     t_b_field(i,:,:,:)        = node_list%node(i)%b_field     
 #endif
 #ifndef USE_DOMM
 #ifdef USE_EXT_FIELD
@@ -509,8 +507,6 @@ subroutine export_hdf5_restart(node_list,element_list,filename,aux_node_list)
 #else
      t_chi_correction(i,:,:)   = node_list%node(i)%chi_correction
 #endif
-#else
-     t_b_vac_field(i,:,:,:)    = node_list%node(i)%b_vac_field
 #endif
      t_j_source(i,:,:)         = node_list%node(i)%j_source
 #endif
@@ -637,17 +633,14 @@ subroutine export_hdf5_restart(node_list,element_list,filename,aux_node_list)
 #if STELLARATOR_MODEL
   call HDF5_array2D_saving(file_id,t_r_tor_eq, &
        node_list%n_nodes,n_degrees,'r_tor_eq'//char(0))
-#if JOREK_MODEL == 180 || defined(USE_EXT_FIELD)
-  ! Save b_field (full equilibrium B from GVEC)
-  call HDF5_array4D_saving(file_id,t_b_field, &
-       node_list%n_nodes,n_coord_tor,n_degrees,n_dim+1,'b_field'//char(0))
-#endif
 #if JOREK_MODEL == 180
   ! Save GVEC fields (pressure and j_field only needed in model180)
   call HDF5_array2D_saving(file_id,t_pressure, &
        node_list%n_nodes,n_degrees,'pressure'//char(0))
   call HDF5_array4D_saving(file_id,t_j_field, &
        node_list%n_nodes,n_coord_tor,n_degrees,n_dim+1,'j_field'//char(0))
+  call HDF5_array4D_saving(file_id,t_b_field, &
+       node_list%n_nodes,n_coord_tor,n_degrees,n_dim+1,'b_field'//char(0))
 #endif /* JOREK_MODEL == 180 */
 
 #ifdef WITH_TiTe
@@ -665,9 +658,6 @@ subroutine export_hdf5_restart(node_list,element_list,filename,aux_node_list)
   call HDF5_array3D_saving(file_id,t_chi_correction, &
        node_list%n_nodes,n_coord_tor,n_degrees,'chi_correction'//char(0))
 #endif
-#else
-  call HDF5_array4D_saving(file_id,t_b_vac_field, &
-       node_list%n_nodes,n_coord_tor,n_degrees,n_dim+1,'b_vac_field'//char(0))
 #endif
   call HDF5_array3D_saving(file_id,t_j_source, &
        node_list%n_nodes,n_tor,n_degrees,'j_source'//char(0))

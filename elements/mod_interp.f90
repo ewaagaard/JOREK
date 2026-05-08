@@ -1362,8 +1362,8 @@ do kv = 1,n_vertex_max  ! 4 vertices
       P_st = P_st + node_list%node(iv)%r_tor_eq(kf) * element_list%element(i_elm)%size(kv,kf) * G_st(kv,kf)
       P_ss = P_ss + node_list%node(iv)%r_tor_eq(kf) * element_list%element(i_elm)%size(kv,kf) * G_ss(kv,kf)
       P_tt = P_tt + node_list%node(iv)%r_tor_eq(kf) * element_list%element(i_elm)%size(kv,kf) * G_tt(kv,kf)
-#if JOREK_MODEL == 180 || defined(USE_EXT_FIELD)
-    ! i_var=1: Full equilibrium B field (model180, or model183 with USE_EXT_FIELD loading from model180 restart)
+#if JOREK_MODEL == 180
+    ! i_var=1: Full equilibrium B field
     else if (i_var == 1) then
       P    = P    + node_list%node(iv)%b_field(i_harm,kf,i_dim) * element_list%element(i_elm)%size(kv,kf) * G(kv,kf)
       P_s  = P_s  + node_list%node(iv)%b_field(i_harm,kf,i_dim) * element_list%element(i_elm)%size(kv,kf) * G_s(kv,kf)
@@ -1371,8 +1371,6 @@ do kv = 1,n_vertex_max  ! 4 vertices
       P_st = P_st + node_list%node(iv)%b_field(i_harm,kf,i_dim) * element_list%element(i_elm)%size(kv,kf) * G_st(kv,kf)
       P_ss = P_ss + node_list%node(iv)%b_field(i_harm,kf,i_dim) * element_list%element(i_elm)%size(kv,kf) * G_ss(kv,kf)
       P_tt = P_tt + node_list%node(iv)%b_field(i_harm,kf,i_dim) * element_list%element(i_elm)%size(kv,kf) * G_tt(kv,kf)
-#endif
-#if JOREK_MODEL == 180
     else if (i_var == 2) then
       P    = P    + node_list%node(iv)%j_field(i_harm,kf,i_dim) * element_list%element(i_elm)%size(kv,kf) * G(kv,kf)
       P_s  = P_s  + node_list%node(iv)%j_field(i_harm,kf,i_dim) * element_list%element(i_elm)%size(kv,kf) * G_s(kv,kf)
@@ -1401,13 +1399,6 @@ do kv = 1,n_vertex_max  ! 4 vertices
 #endif /*!defined(USE_DOMM) && !defined(USE_EXT_FIELD)*/
     else if (i_var == 6) then
 #if !defined(USE_DOMM) && defined(USE_EXT_FIELD)
-      P    = P    + node_list%node(iv)%b_vac_field(i_harm,kf,i_dim) * element_list%element(i_elm)%size(kv,kf) * G(kv,kf)
-      P_s  = P_s  + node_list%node(iv)%b_vac_field(i_harm,kf,i_dim) * element_list%element(i_elm)%size(kv,kf) * G_s(kv,kf)
-      P_t  = P_t  + node_list%node(iv)%b_vac_field(i_harm,kf,i_dim) * element_list%element(i_elm)%size(kv,kf) * G_t(kv,kf)
-      P_st = P_st + node_list%node(iv)%b_vac_field(i_harm,kf,i_dim) * element_list%element(i_elm)%size(kv,kf) * G_st(kv,kf)
-      P_ss = P_ss + node_list%node(iv)%b_vac_field(i_harm,kf,i_dim) * element_list%element(i_elm)%size(kv,kf) * G_ss(kv,kf)
-      P_tt = P_tt + node_list%node(iv)%b_vac_field(i_harm,kf,i_dim) * element_list%element(i_elm)%size(kv,kf) * G_tt(kv,kf)
-#elif defined(USE_DOMM)
       P    = P    + node_list%node(iv)%b_vac_field(i_harm,kf,i_dim) * element_list%element(i_elm)%size(kv,kf) * G(kv,kf)
       P_s  = P_s  + node_list%node(iv)%b_vac_field(i_harm,kf,i_dim) * element_list%element(i_elm)%size(kv,kf) * G_s(kv,kf)
       P_t  = P_t  + node_list%node(iv)%b_vac_field(i_harm,kf,i_dim) * element_list%element(i_elm)%size(kv,kf) * G_t(kv,kf)

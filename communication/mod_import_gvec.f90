@@ -450,9 +450,6 @@ subroutine read_gvec_import(node_list, element_list, file_name, is_test, ierr)
         node_list%node(i_node)%b_vac_field(itor, 2, 3) = B_vac_phi_four_s(i_theta, i_rad, idx) * s_factor * 1.0 / 3.0
         node_list%node(i_node)%b_vac_field(itor, 3, 3) = B_vac_phi_four_t(i_theta, i_rad, idx) * theta_factor * 1.0 / 3.0
         node_list%node(i_node)%b_vac_field(itor, 4, 3) = B_vac_phi_four_st(i_theta, i_rad, idx) * s_factor * theta_factor * 1.0 / 9.0
-#elif defined(USE_DOMM)
-        ! USE_DOMM: no B_vac in gvec2jorek.dat, use GVEC equilibrium B as proxy
-        node_list%node(i_node)%b_vac_field(itor,:,:) = node_list%node(i_node)%b_field(itor,:,:)
 #endif /*USE_EXT_FIELD or USE_DOMM*/
       enddo
       
