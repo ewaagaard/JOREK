@@ -13,6 +13,9 @@ use basis_at_gaussian
 use phys_module
 use nodes_elements
 use mod_chi
+use mod_boundary_ndotB, only: accumulate_ndotB_at_node_plane
+use mod_interp, only: interp_gvec, interp_RZP
+use mod_model_settings, only: var_Psi, var_zj, var_rho, var_T
 implicit none
 
 type(type_element)   :: element
@@ -27,19 +30,37 @@ real*8  :: psi_axis, R_axis, Z_axis, psi_bnd, R_xpoint(2), Z_xpoint(2)
 logical :: xpoint2
 
 integer :: vertex2(2), direction_perp(2), i, i2, i3, j, j2, j3, k, l, ms, mp, im, in, index_ij, index_kl, ij3, kl1, kl3, n_tor_local
+integer :: ij5, kl5  ! For particle flux SBC
+integer :: ij6, kl6  ! For heat flux SBC
 real*8  :: element_size_ij, element_size_kl, element_size_perp, BigR, phi, Bv2, dl, xjac, xjac_x, xjac_y, grad_chi(3), grad_Bv2(3)
 real*8  :: Psi0_x, Psi0_y, Psi0_phi, Psi0_xx, Psi0_yy, Psi0_xy, Psi0_xphi, Psi0_yphi, Psi0_phiphi, Psi0_px, Psi0_py, Lap_Psi0
 real*8  :: grad_Psi0(3), grad_Psi(3), Bv_parderiv_Bv_parderiv_Psi0, div_Bv2_pgrad_Psi0, v, rhs_ij_3, amat_31, amat_33, zbig, x_p_x
+real*8  :: amat_55  ! For particle flux SBC LHS
+real*8  :: amat_66, rhs_ij_6, T_local  ! For heat flux SBC
 real*8  :: Psi, Psi_s, Psi_t, Psi_p, Psi_ss, Psi_tt, Psi_st, Psi_sp, Psi_tp, Psi_pp, theta, zeta, Bv_parderiv_Bv_parderiv_Psi, x_p_y
 real*8  :: Psi_x, Psi_y, Psi_phi, Psi_xx, Psi_yy, Psi_xy, Psi_xphi, Psi_yphi, Psi_phiphi, Psi_px, Psi_py, zj, Lap_Psi, y_p_x, y_p_y
 
 real*8, dimension(n_plane,n_gauss) :: x_g, x_s, x_t, x_p, x_ss, x_tt, x_st, x_sp, x_tp, x_pp
 real*8, dimension(n_plane,n_gauss) :: y_g, y_s, y_t, y_p, y_ss, y_tt, y_st, y_sp, y_tp, y_pp
 real*8, dimension(n_plane,n_gauss) :: Psi0_s, Psi0_t, Psi0_p, Psi0_ss, Psi0_tt, Psi0_st, Psi0_sp, Psi0_tp, Psi0_pp, zj0
+real*8, dimension(n_plane,n_gauss) :: rho0_interp, T0_interp  ! For particle flux SBC
 
 real*8, dimension(n_vertex_max,n_order+1,n_gauss) :: H1_full, H1_s_full, H1_t_full, H1_ss_full, H1_tt_full, H1_st_full
 
 real*8, dimension(0:n_order-1,0:n_order-1,0:n_order-1) :: chi
+
+! ndotB variables for stellarator SBC
+real*8  :: B_full(3), n_perp(3)
+real*8  :: normal_R, normal_Z, normal_p, normal_mag
+real*8  :: Btot, ndotB, bdotn_normalized
+
+! Particle flux SBC variables
+real*8  :: rhs_ij_5, cs_local, rho_local, abs_ndotB, abs_ndotB_hflux
+
+! Variables for full B field interpolation from b_field (i_var=1)
+real*8, dimension(n_order) :: B_interp, B_s, B_t, B_p_coord
+integer :: i_dim, i_harm, i_var
+real*8  :: B_harm, B_harm_s, B_harm_t, B_harm_st, B_harm_ss, B_harm_tt
 
 type(type_node) :: nodes2(2), tmp_node
 
@@ -102,6 +123,7 @@ x_g = 0.d0; x_s = 0.d0; x_t = 0.d0; x_p = 0.d0; x_ss = 0.d0; x_tt = 0.d0; x_st =
 y_g = 0.d0; y_s = 0.d0; y_t = 0.d0; y_p = 0.d0; y_ss = 0.d0; y_tt = 0.d0; y_st = 0.d0; y_sp = 0.d0; y_tp = 0.d0; y_pp = 0.d0
 Psi0_s = 0.d0; Psi0_t = 0.d0; Psi0_p = 0.d0; Psi0_ss = 0.d0; Psi0_tt = 0.d0
 Psi0_st = 0.d0; Psi0_sp = 0.d0; Psi0_tp = 0.d0; Psi0_pp = 0.d0; zj0 = 0.d0
+rho0_interp = 0.d0; T0_interp = 0.d0  ! Initialize for particle flux SBC
 H1_full = 0.d0; H1_s_full = 0.d0; H1_t_full = 0.d0; H1_ss_full = 0.d0; H1_tt_full = 0.d0; H1_st_full = 0.d0
 
 direction_perp(1) = 6/direction(2)     ! =3 if direction(2)=2, =2 if direction(2)=3
@@ -173,6 +195,10 @@ do i=1,2    ! sum over 2 verices
                          - nodes2(i)%values(in,j2,var_Psi)*element%size(i3,j2) - nodes2(i)%values(in,j3,var_Psi)*element%size(i3,j3))*H1(i,j,ms)*HZ(in,mp)
 
           zj0(mp,ms) = zj0(mp,ms) + nodes(i)%values(in,j2,var_zj)*element_size_ij*H1(i,j,ms)*HZ(in,mp)
+          
+          ! Interpolate rho and T for particle flux SBC
+          rho0_interp(mp,ms) = rho0_interp(mp,ms) + nodes(i)%values(in,j2,var_rho)*element_size_ij*H1(i,j,ms)*HZ(in,mp)
+          T0_interp(mp,ms) = T0_interp(mp,ms) + nodes(i)%values(in,j2,var_T)*element_size_ij*H1(i,j,ms)*HZ(in,mp)
         end do
       end do
     end do
@@ -225,6 +251,74 @@ do ms=1,n_gauss
     Psi0_yphi = Psi0_py - x_p_y*Psi0_x - x_p(mp,ms)*Psi0_xy - y_p_y*Psi0_y - y_p(mp,ms)*Psi0_yy
     grad_Psi0 = (/ Psi0_x, Psi0_y, Psi0_phi/BigR /)
     
+#if defined(USE_EXT_FIELD)
+    ! Full equilibrium B field from b_vac_field (i_var=6)
+    ! This includes vacuum + response from GVEC equilibrium
+    ! Note: b_field (i_var=1) is not always exported, but b_vac_field is
+    i_var = 6  ! b_vac_field (always present when USE_EXT_FIELD exported)
+    do i_dim = 1, n_order
+      call interp_gvec(node_list, element_list, ielm, i_var, i_dim, 1, 1.d0, xgauss(ms), &
+                       B_interp(i_dim), B_s(i_dim), B_t(i_dim), B_harm_st, B_harm_ss, B_harm_tt)
+      B_p_coord(i_dim) = 0.d0
+      ! Add higher toroidal harmonics
+      do i_harm = 1, (n_coord_tor-1)/2
+        call interp_gvec(node_list, element_list, ielm, i_var, i_dim, 2*i_harm, 1.d0, xgauss(ms), &
+                         B_harm, B_harm_s, B_harm_t, B_harm_st, B_harm_ss, B_harm_tt)
+        B_interp(i_dim) = B_interp(i_dim) + B_harm * cos(mode_coord(2*i_harm)*phi)
+        B_p_coord(i_dim) = B_p_coord(i_dim) - B_harm * mode_coord(2*i_harm) * sin(mode_coord(2*i_harm)*phi)
+        
+        call interp_gvec(node_list, element_list, ielm, i_var, i_dim, 2*i_harm+1, 1.d0, xgauss(ms), &
+                         B_harm, B_harm_s, B_harm_t, B_harm_st, B_harm_ss, B_harm_tt)
+        B_interp(i_dim) = B_interp(i_dim) - B_harm * sin(mode_coord(2*i_harm)*phi)
+        B_p_coord(i_dim) = B_p_coord(i_dim) - B_harm * mode_coord(2*i_harm) * cos(mode_coord(2*i_harm)*phi)
+      end do
+    end do
+    B_full(1) = B_interp(1)  ! B_R
+    B_full(2) = B_interp(2)  ! B_Z
+    B_full(3) = B_interp(3)  ! B_phi
+#else
+    ! USE_DOMM path: B from analytic Dommaschk chi + psi cross-product correction
+    ! B = grad(chi) + (grad(Psi) x grad(chi)) / (F0*R)
+    ! This uses the Dommaschk potential evaluated at each Gauss point.
+    ! No b_vac_field array needed (not allocated under USE_DOMM).
+
+    B_full(1) = chi(1,0,0) + (Psi0_y*chi(0,0,1) - Psi0_phi*chi(0,1,0))/(F0*BigR)
+    B_full(2) = chi(0,1,0) - (Psi0_x*chi(0,0,1) - Psi0_phi*chi(1,0,0))/(F0*BigR)
+    B_full(3) = chi(0,0,1)/BigR + (Psi0_x*chi(0,1,0) - Psi0_y*chi(1,0,0))/F0
+    if (ms .eq. 1 .and. mp .eq. 1) then
+      write(*,'(A)') "SBC ndotB: USE_DOMM analytic chi path (grad chi + psi cross-terms)"
+    endif
+#endif
+
+    ! Normal (outward from boundary, using tangent rotation)
+    normal_R = -y_s(mp,ms)  ! perpendicular to tangent
+    normal_Z =  x_s(mp,ms)
+    normal_p = (x_p(mp,ms)*y_s(mp,ms) - x_s(mp,ms)*y_p(mp,ms))/BigR
+    normal_mag = sqrt(normal_R**2 + normal_Z**2 + normal_p**2)
+    n_perp = (/ normal_R, normal_Z, normal_p /) / normal_mag
+
+    ! ndotB and incidence angle
+    Btot = sqrt(dot_product(B_full, B_full))
+    ndotB = dot_product(n_perp, B_full)
+    
+    ! Apply artificial angle scaling for SBC testing (vpar_sbc_angle_scale in namelist)
+    ! Scale factor > 1 increases apparent incidence angle for testing
+    ! Default = 1.0 (no scaling)
+    bdotn_normalized = ndotB / Btot * vpar_sbc_angle_scale  ! sin(alpha) scaled
+    
+    ! Clamp to physical range [-1, 1] to avoid numerical issues
+    bdotn_normalized = max(-1.d0, min(1.d0, bdotn_normalized))
+    
+    ! Store n.B/|B| for both boundary nodes of this element (for use in BC)
+    ! Store per-plane for toroidal variation (only at first Gauss point to avoid overcounting)
+    ! Use OMP critical to ensure thread safety
+    if (ms .eq. 1) then
+      !$omp critical (ndotB_storage)
+      call accumulate_ndotB_at_node_plane(element%vertex(vertex(1)), mp, bdotn_normalized)
+      call accumulate_ndotB_at_node_plane(element%vertex(vertex(2)), mp, bdotn_normalized)
+      !$omp end critical (ndotB_storage)
+    endif
+
     Lap_Psi0 = Psi0_xx + Psi0_x/BigR + Psi0_yy + Psi0_phiphi/BigR**2
     Bv_parderiv_Bv_parderiv_Psi0 = chi(1,0,0)*(chi(2,0,0)*Psi0_x + chi(1,0,0)*Psi0_xx + chi(1,1,0)*Psi0_y + chi(0,1,0)*Psi0_xy &
                                 + (chi(1,0,1)*Psi0_phi + chi(0,0,1)*Psi0_xphi)/BigR**2 - 2.d0*chi(0,0,1)*Psi0_phi/BigR**3) &
@@ -233,6 +327,22 @@ do ms=1,n_gauss
                                 + chi(0,0,1)*(chi(1,0,1)*Psi0_x + chi(1,0,0)*Psi0_xphi + chi(0,1,1)*Psi0_y + chi(0,1,0)*Psi0_yphi &
                                 + (chi(0,0,2)*Psi0_phi + chi(0,0,1)*Psi0_phiphi)/BigR**2)/BigR
     div_Bv2_pgrad_Psi0 = Bv2*Lap_Psi0 + dot_product(grad_Bv2,grad_Psi0) - Bv_parderiv_Bv_parderiv_Psi0
+    
+    ! Particle flux SBC: pre-compute values that depend only on (mp,ms) Gauss point
+    if (particle_flux_sbc_enable .or. heat_flux_sbc_enable) then
+      rho_local = rho0_interp(mp,ms)
+      if (rho_local < 1.d-10) rho_local = rho_0  ! Fallback to namelist value
+      T_local = max(T0_interp(mp,ms), T_0)
+      cs_local = sqrt(GAMMA * T_local)
+      abs_ndotB = abs(bdotn_normalized) * particle_flux_sbc_angle_scale
+      abs_ndotB_hflux = abs(bdotn_normalized) * heat_flux_sbc_angle_scale
+    else
+      rho_local = 0.d0
+      T_local = 0.d0
+      cs_local = 0.d0
+      abs_ndotB = 0.d0
+      abs_ndotB_hflux = 0.d0
+    endif
     
     do i=1,2
       do j=1,2
@@ -248,6 +358,45 @@ do ms=1,n_gauss
           ij3 = index_ij + 2*n_tor_local
           
           RHS(ij3) = RHS(ij3) + rhs_ij_3*wgauss(ms)
+          
+          ! v_par BC now handled in mod_boundary_conditions.f90 (node-based penalty)
+          ! NOT here in element matrix to avoid double-application
+          
+          ! Particle flux SBC: weak form RHS for density equation
+          ! Formula: rhs = - v * rho * cs * |ndotB| * BigR * dl * tstep * strength
+          ! This adds outward particle flux proportional to incidence angle
+          
+          if (particle_flux_sbc_enable) then
+            ! RHS index for var_rho (=5, so offset is 4*n_tor_local)
+            ! Compute outside if-block so it's available for LHS term too
+            ij5 = index_ij + 4*n_tor_local
+            
+            ! Negative sign: outward flux reduces density
+            ! particle_flux_sbc_strength allows ramping from 0 to 1
+            rhs_ij_5 = - v * rho_local * cs_local * abs_ndotB * BigR * dl * tstep * particle_flux_sbc_strength
+            
+            RHS(ij5) = RHS(ij5) + rhs_ij_5 * wgauss(ms)
+          endif
+          
+          ! Heat flux SBC: weak form RHS for temperature equation
+          ! Formula: rhs = - v * (gamma_sheath - 1) * rho * T * cs * |ndotB| * BigR * dl * tstep * strength
+          ! This adds outward heat flux proportional to incidence angle
+          ! gamma_sheath uses JOREK definition (default 4.5 for single-fluid)
+          
+          if (heat_flux_sbc_enable) then
+            ! RHS index for var_T (=6, so offset is 5*n_tor_local)
+            ij6 = index_ij + 5*n_tor_local
+            
+            ! Negative sign: outward heat flux reduces temperature
+            rhs_ij_6 = - v * (gamma_sheath - 1.d0) * rho_local * T_local * cs_local * abs_ndotB_hflux &
+                       * BigR * dl * tstep * heat_flux_sbc_strength
+            
+            RHS(ij6) = RHS(ij6) + rhs_ij_6 * wgauss(ms)
+          endif
+          
+          ! Compute ij5, ij6 for LHS use (needed even if RHS was skipped due to if-condition)
+          ij5 = index_ij + 4*n_tor_local
+          ij6 = index_ij + 5*n_tor_local
           
           do k=1,n_vertex_max
             do l=1,n_order+1
@@ -308,6 +457,31 @@ do ms=1,n_gauss
                 
                 ELM(ij3,kl1) = ELM(ij3,kl1) + amat_31*wgauss(ms)
                 ELM(ij3,kl3) = ELM(ij3,kl3) + amat_33*wgauss(ms)
+                
+                ! Particle flux SBC: LHS term (linearization w.r.t. rho)
+                ! This is the d(flux)/d(rho) contribution needed for implicit scheme
+                ! Formula: amat_55 = + v * rho_trial * cs * |ndotB| * BigR * dl * theta * tstep * strength
+                ! The + sign makes the matrix entry positive, which drives rho DOWN when coupled with RHS
+                if (particle_flux_sbc_enable) then
+                  kl5 = index_kl + 4*n_tor_local
+                  ! Psi is the trial function for the unknown (density increment)
+                  amat_55 = v * Psi * cs_local * abs_ndotB * BigR * dl * theta * tstep * particle_flux_sbc_strength
+                  ELM(ij5,kl5) = ELM(ij5,kl5) + amat_55 * wgauss(ms)
+                endif
+                
+                ! Heat flux SBC: LHS term (linearization w.r.t. T)
+                ! This is the d(heat_flux)/d(T) contribution for implicit scheme
+                ! Formula: amat_66 = + v * (gamma_sheath-1) * rho * T_trial * cs * |ndotB| * BigR * dl * theta * tstep * strength
+                ! The + sign makes the matrix entry positive, which drives T DOWN when coupled with RHS
+                if (heat_flux_sbc_enable) then
+                  kl6 = index_kl + 5*n_tor_local
+                  ! Psi is the trial function for the unknown (temperature increment)
+                  amat_66 = v * (gamma_sheath - 1.d0) * rho_local * Psi * cs_local * abs_ndotB_hflux &
+                            * BigR * dl * theta * tstep * heat_flux_sbc_strength
+                  ELM(ij6,kl6) = ELM(ij6,kl6) + amat_66 * wgauss(ms)
+                endif
+                
+                ! v_par BC handled in mod_boundary_conditions.f90 (node-based penalty)
               end do
             end do
           end do
