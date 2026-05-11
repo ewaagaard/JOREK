@@ -301,6 +301,9 @@ subroutine construct_matrix(mhd_sim, local_elms, n_local_elms, a_mat, rhs_vec, h
   use mod_axis_treatment
   use mod_simulation_data, only: type_MHD_SIM
   use global_distributed_matrix, only: global_matrix_structure_vacuum
+#if JOREK_MODEL == 183
+  use mod_boundary_ndotB, only: init_boundary_ndotB, finalize_boundary_ndotB
+#endif
   
   !$ use omp_lib
   implicit none
@@ -444,6 +447,11 @@ subroutine construct_matrix(mhd_sim, local_elms, n_local_elms, a_mat, rhs_vec, h
     call global_matrix_structure_vacuum(mhd_sim%node_list, mhd_sim%bnd_node_list, a_mat, i_tor_min=1, i_tor_max=n_tor)
   endif
 
+#if JOREK_MODEL == 183
+  ! Initialize n.B storage for stellarator BC (before OMP region)
+  ! Pass n_plane and n_tor for toroidal variation support
+  call init_boundary_ndotB(node_list%n_nodes, n_plane, n_tor)
+#endif
 
  
   ! --- Declare shared and private variables for omp
@@ -728,6 +736,11 @@ subroutine construct_matrix(mhd_sim, local_elms, n_local_elms, a_mat, rhs_vec, h
     call dealloc_node(aux_nodes(iv))
   enddo
   !$omp end parallel
+
+#if JOREK_MODEL == 183
+  ! Finalize n.B storage (average accumulated values, print stats)
+  call finalize_boundary_ndotB()
+#endif
  
   ! --- Memory tracking
   call tr_vnorms("cm_A_bef_bc", a_mat%val, a_mat%nnz)
