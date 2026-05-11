@@ -366,7 +366,7 @@ do ms=1,n_gauss
           if (particle_flux_sbc_enable) then
             ! RHS index for var_rho (=5, so offset is 4*n_tor_local)
             ! NOTE: particle flux SBC is a pure loss term. Without a replenishment source
-            ! (e.g. artificial particle source), rho drains monotonically. Experimental.
+            ! (e.g. artificial particle source), rho drains monotonically, and may cause numerical instability over long times.
             ij5 = index_ij + 4*n_tor_local
             
             ! Negative sign: outward flux reduces density
