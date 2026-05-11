@@ -158,19 +158,19 @@ contains
                                          a_mat%i_tor_min, a_mat%i_tor_max)
                                 else
                                   ! n>0 modes: use precomputed vpar_target Fourier coefficients
-                                  ! Map JOREK harmonic index (in) to Fourier mode index:
-                                  ! JOREK layout: in=1: n=0, in=2: +cos(nfp*phi),
-                                  !   in=3: -sin(nfp*phi), in=4: +cos(2*nfp*phi), ...
-                                  ! Fourier storage: k=1: n=0, k=2: n=nfp, k=3: n=2*nfp, ...
+                                  ! JOREK toroidal basis: in=1:DC, in=2:+cos(nfp*phi), in=3:-sin(nfp*phi),
+                                  !   in=4:+cos(2*nfp*phi), in=5:-sin(2*nfp*phi), ...
+                                  ! Pairs (2,3),(4,5),... share the same Fourier harmonic k_fourier.
+                                  ! For physical vpar = A_k*cos + B_k*sin, the JOREK DOF for odd in
+                                  ! stores -B_k (to cancel the -sin basis), hence delta = -B_k - current.
                                   k_fourier = in / 2 + 1
                                   call get_vpar_target_fourier_at_node(inode, k_fourier, vpar_target_cos, vpar_target_sin)
                                   
-                                  ! Select cos or sin and apply JOREK -sin convention
                                   if (mod(in, 2) .eq. 0) then
                                     ! Even in: cosine component
                                     delta_vpar = vpar_target_cos - node_list%node(inode)%values(in,1,var_Vpar)
                                   else
-                                    ! Odd in: sine component (JOREK uses -sin basis)
+                                    ! Odd in: sine component; JOREK basis is -sin, so store -B_k
                                     delta_vpar = -vpar_target_sin - node_list%node(inode)%values(in,1,var_Vpar)
                                   endif
                                   

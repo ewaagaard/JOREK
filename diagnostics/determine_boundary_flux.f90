@@ -188,5 +188,11 @@ write(*,*) "Max n.B: ", ndotB_max
 write(*,*) "Surface area:        ", n_period * surface_area, "m^2"
 write(*,*) "Integrated abs(n.B): ", n_period * sum_dA_abs, "Tm^2"
 write(*,*) "Total Boundary Flux: ", n_period * sum_dA, "Tm^2"
+! Div-B sanity check: integral(n.B dA) over a closed surface should be zero.
+! Non-zero indicates: numerical div-B error, wrong domain (not periodic), or bug.
+if (sum_dA_abs > 0.d0 .and. abs(sum_dA) > 0.05d0 * sum_dA_abs) then
+  write(*,*) "WARNING: |integral(n.B dA)| / integral(|n.B| dA) =", abs(sum_dA)/sum_dA_abs, "(> 5%)"
+  write(*,*) "  This may indicate non-zero div-B or incomplete toroidal coverage."
+endif
 
 end subroutine determine_boundary_flux

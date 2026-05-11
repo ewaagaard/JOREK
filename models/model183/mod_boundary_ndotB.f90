@@ -313,6 +313,7 @@ subroutine finalize_boundary_ndotB()
       " max=", ndotB_max, " avg=", ndotB_avg
     if (.not. ndotB_evolving) then
       write(*,'(A)') "   ndotB_evolving=.false.: values frozen for subsequent timesteps"
+      write(*,'(A)') "   NOTE: ndotB_evolving=.true. for loop_voltage/topology-changing runs not yet tested."
     endif
   endif
   

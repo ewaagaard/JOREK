@@ -285,9 +285,6 @@ do ms=1,n_gauss
     B_full(1) = chi(1,0,0) + (Psi0_y*chi(0,0,1) - Psi0_phi*chi(0,1,0))/(F0*BigR)
     B_full(2) = chi(0,1,0) - (Psi0_x*chi(0,0,1) - Psi0_phi*chi(1,0,0))/(F0*BigR)
     B_full(3) = chi(0,0,1)/BigR + (Psi0_x*chi(0,1,0) - Psi0_y*chi(1,0,0))/F0
-    if (ms .eq. 1 .and. mp .eq. 1) then
-      write(*,'(A)') "SBC ndotB: USE_DOMM analytic chi path (grad chi + psi cross-terms)"
-    endif
 #endif
 
     ! Normal (outward from boundary, using tangent rotation)
@@ -368,7 +365,8 @@ do ms=1,n_gauss
           
           if (particle_flux_sbc_enable) then
             ! RHS index for var_rho (=5, so offset is 4*n_tor_local)
-            ! Compute outside if-block so it's available for LHS term too
+            ! NOTE: particle flux SBC is a pure loss term. Without a replenishment source
+            ! (e.g. artificial particle source), rho drains monotonically. Experimental.
             ij5 = index_ij + 4*n_tor_local
             
             ! Negative sign: outward flux reduces density
@@ -385,6 +383,7 @@ do ms=1,n_gauss
           
           if (heat_flux_sbc_enable) then
             ! RHS index for var_T (=6, so offset is 5*n_tor_local)
+            ! NOTE: heat flux SBC is a pure loss term (same caveat as particle flux above).
             ij6 = index_ij + 5*n_tor_local
             
             ! Negative sign: outward heat flux reduces temperature
