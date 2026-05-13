@@ -137,9 +137,8 @@ do i_elm=(i_shell-1)*n_tht+1, i_shell*n_tht
           Bp0 = Bp0 - Bp0sin*sin(mode_coord(i_harm+1)*p)
         end do
 
-        ! GVEC equilibrium B (fields 7-9): perturbation for BOTH USE_DOMM and USE_EXT_FIELD
-        ! Must add F0/R to B_phi in both cases
-        Bgvec_boundary = (/ BR0, BZ0, BP0 + F0/RRgi /)
+        ! GVEC equilibrium b_field stores (B_R, B_Z, B_phi - F0/R) from gvec2jorek.dat.
+        Bgvec_boundary = (/ BR0, BZ0, BP0 /)
 
         ! Interpolate GVEC vacuum field (b_vac_field, i_var=6) -- stores FULL field including F0/R
         call interp_gvec(node_list,element_list,i_elm,6,1,1,ri,si,BvR0,dummy,dummy,dummy,dummy,dummy)
