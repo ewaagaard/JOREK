@@ -137,8 +137,10 @@ do i_elm=(i_shell-1)*n_tht+1, i_shell*n_tht
           Bp0 = Bp0 - Bp0sin*sin(mode_coord(i_harm+1)*p)
         end do
 
-        ! GVEC equilibrium b_field stores (B_R, B_Z, B_phi - F0/R) from gvec2jorek.dat.
-        Bgvec_boundary = (/ BR0, BZ0, BP0 /)
+        ! B_boundary = get_chi (vacuum, Dommaschk or chi_correction) + psi cross-terms (plasma response).
+        ! This is identical to what the SBC computes internally; col 5 = col 4 at equilibrium.
+        ! Under USE_EXT_FIELD=1 the SBC uses b_vac_field instead -- that is col 9 (ndotB_bvac).
+        Bgvec_boundary = B_boundary
 
         ! Interpolate GVEC vacuum field (b_vac_field, i_var=6) -- stores FULL field including F0/R
         call interp_gvec(node_list,element_list,i_elm,6,1,1,ri,si,BvR0,dummy,dummy,dummy,dummy,dummy)
