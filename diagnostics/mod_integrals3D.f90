@@ -120,7 +120,7 @@ real*8  :: r0_corr, T0_corr, Te0_corr, Ti0_corr, dTe0_corr_dT, T_or_Te, T_or_Te_
 real*8  :: density_tot, density_in, density_out,  pressure, pressure_in, pressure_out, mag_pressure, mag_pressure_in, mag_pressure_out
 real*8  :: pressure_e, pressure_e_in, pressure_e_out, pressure_i, pressure_i_in, pressure_i_out
 real*8  :: current_in, current_out, D_int, D_ext, P_ext, mag_pres_ext, C_ext, delta_phi, phi, P_tot, mag_pres_tot, D_tot
-real*8  :: beta_tot, beta_in, beta_out
+real*8  :: beta_tot, beta_in, beta_out, vmec_beta_tot, vmec_beta_in, vmec_beta_out
 real*8  :: VB_int, VB_ext, VB_tot
 real*8  :: C_intern_3d, C_ext_3d, current_R_in, current_R_out, current_R, P_e_ext, P_i_ext, P_e_tot, P_i_tot
 real*8  :: VP_int, VP_ext, VK_int, VK_ext, vpar0, Bv2, BB2, VP_tot, VK_tot
@@ -2344,7 +2344,11 @@ area                 = n_period * area / (2.d0 * PI)
 surface_area         = n_period * surface_area
 beta_tot             = n_period * beta_tot / (Volume_in + Volume_ext)
 beta_in              = n_period * beta_in  / Volume_in
-beta_out             = n_period * beta_out / Volume_ext
+if (volume_ext .ne. 0) then
+  beta_out           = n_period * beta_out / Volume_ext
+else
+  beta_out           = 0.d0
+endif
 mom_par_int      = n_period * mom_par_int * rho_norm / t_norm
 mom_par_ext      = n_period * mom_par_ext * rho_norm / t_norm
 mom_par_tot      = n_period * mom_par_tot * rho_norm / t_norm
@@ -2410,6 +2414,13 @@ li3_tot      = 2.d0 * mag_tot/0.5  /(current_tot**2 * R_geo ) * fact_mu0
 sheath_heatflux =  gamma_stangeby * (gamma-1)/(2.d0*gamma) * vn_p0 ! the factor comes to obtain n T_e v from vn_p0
 R_curr_cent  = sqrt(R2curr / current_tot) 
 Z_curr_cent  = Z_curr_cent / current_tot 
+vmec_beta_tot        = pressure/mag_pressure
+vmec_beta_in         = pressure_in/mag_pressure_in
+if (mag_pressure_out .ne. 0) then
+  vmec_beta_out      = pressure_out/mag_pressure_out
+else
+  vmec_beta_out      = 0.d0
+endif
 
 
 ! --- Externally calculated quantities
@@ -2815,7 +2826,7 @@ if (my_id .eq. 0) then
   write(*,'(A,2es14.6,A)') ' Surface area                    : ',xt,surface_area, '[m^2]'
   write(*,'(A,4es14.6,A)') ' density  (total/in/out)         : ',xt,density_tot,  density_in,  density_out,'[ 10^20/m^3]'
   write(*,'(A,4es14.6,A)') ' pressure (total/in/out)         : ',xt,pressure/1.d6, pressure_in/1.d6, pressure_out/1.d6,' [MJ]'
-  write(*,'(A,3es14.6,A)') ' magnetic pressure (total/in/out): ',xt,mag_pressure/1.d6, mag_pressure_in/1.d6, mag_pressure_out/1.d6, '[MJ]'
+  write(*,'(A,4es14.6,A)') ' magnetic pressure (total/in/out): ',xt,mag_pressure/1.d6, mag_pressure_in/1.d6, mag_pressure_out/1.d6, ' [MJ]'
   write(*,'(A,4es14.6,A)') ' kinetic parallel (total/in/out) : ',xt,kin_par_tot/1.d6, kin_par_in/1.d6, kin_par_out/1.d6,' [MJ]'
   write(*,'(A,4es14.6,A)') ' kinetic perp (total/in/out)     : ',xt,kin_perp_tot/1.d6, kin_perp_in/1.d6, kin_perp_out/1.d6,' [MJ]'
   write(*,'(A,4e14.6,A)')  ' parallel momentum (total/in/out): ',xt,mom_par_tot, mom_par_int, mom_par_ext,' [kg m/s]'
@@ -2830,7 +2841,7 @@ if (my_id .eq. 0) then
   write(*,'(A,2es14.6)')   ' li(3)                           : ',xt, li3 
   write(*,'(A,2es14.6)')   ' betap(1)                        : ',xt, beta_p
   write(*,'(A,4es14.6)')   ' beta (total/in/out)             : ',xt,beta_tot,beta_in,beta_out
-  write(*,'(A,4es14.6)')   ' vmec_beta (total/in/out)        : ',xt,pressure/mag_pressure, pressure_in/mag_pressure_in, pressure_out/mag_pressure_out
+  write(*,'(A,4es14.6)')   ' vmec_beta (total/in/out)        : ',xt,vmec_beta_tot,vmec_beta_in,vmec_beta_out
   ! beta_tot/in/out is calculated via beta = 2 mu0 <p/B^2> and differs from vmec_beta_tot/in/out which is calculated via beta = 2 mu0 <p> / <B^2>
   ! Also note that VMEC and other codes do not use the factor (GAMMA-1) in the definition of pressure.
 
