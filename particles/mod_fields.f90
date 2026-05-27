@@ -276,7 +276,7 @@ subroutine calc_NeTeTi(fields,time,i_elm,st,phi,                   &
 #else
   real*8, dimension(2) :: P, P_s, P_t, P_phi, P_time
 #endif
-  real*8               :: R, R_s, R_t, Z, Z_s, Z_t, xjac
+  real*8               :: R, R_s, R_t, R_phi, Z, Z_s, Z_t, Z_phi, xjac
   real*8               :: inv_xjac, inv_R
   real*8               :: T_norm, n_norm, n_e_temp
   real*8               :: T_i_temp, T_e_temp
@@ -301,15 +301,29 @@ subroutine calc_NeTeTi(fields,time,i_elm,st,phi,                   &
 
   ! interpolate fields
 #ifdef WITH_TiTe
+  ii_Ti = 2; ii_Te = 3
+#if STELLARATOR_MODEL
+  call fields%interp_PRZP_1(time,i_elm,[var_rho,var_Ti,var_Te],3,st(1),st(2),phi, &
+                            P,P_s,P_t,P_phi,P_time,                               &
+                            R,R_s,R_t,R_phi,Z,Z_s,Z_t,Z_phi)
+#else
+  R_phi = 0.d0; Z_phi = 0.d0
   call fields%interp_PRZ(time,i_elm,[var_rho,var_Ti,var_Te],3,st(1),st(2),phi, &
                          P,P_s,P_t,P_phi,P_time,                               &
                          R,R_s,R_t,Z,Z_s,Z_t)
-  ii_Ti = 2; ii_Te = 3
+#endif
 #else
+  ii_Ti = 2; ii_Te = 2
+#if STELLARATOR_MODEL
+  call fields%interp_PRZP_1(time,i_elm,[var_rho,var_T],2,st(1),st(2),phi, &
+                            P,P_s,P_t,P_phi,P_time,                       &
+                            R,R_s,R_t,R_phi,Z,Z_s,Z_t,Z_phi)
+#else
+  R_phi = 0.d0; Z_phi = 0.d0
   call fields%interp_PRZ(time,i_elm,[var_rho,var_T],2,st(1),st(2),phi,         &
                          P,P_s,P_t,P_phi,P_time,                               &
                          R,R_s,R_t,Z,Z_s,Z_t)
-  ii_Ti = 2; ii_Te = 2
+#endif
 #endif
 
   ! density
@@ -341,30 +355,34 @@ subroutine calc_NeTeTi(fields,time,i_elm,st,phi,                   &
     
     if (.not. with_TiTe) then
       ! 1-T case
-      tmp_g = grad_of(ii_Te, inv_xjac, inv_R, R_s, R_t, Z_s, Z_t, P_s, P_t, P_phi, T_norm)
+      tmp_g = grad_of(ii_Te, inv_xjac, inv_R, R_s, R_t, R_phi, Z_s, Z_t, Z_phi, P_s, P_t, P_phi, T_norm)
       if (present(grad_T_e)) grad_T_e = tmp_g
       if (present(grad_T_i)) grad_T_i = tmp_g
     else
       ! 2-T case
-      if (present(grad_T_i)) grad_T_i = grad_of(ii_Ti, inv_xjac, inv_R, R_s, R_t, Z_s, Z_t, P_s, P_t, P_phi, T_norm)
-      if (present(grad_T_e)) grad_T_e = grad_of(ii_Te, inv_xjac, inv_R, R_s, R_t, Z_s, Z_t, P_s, P_t, P_phi, T_norm)
+      if (present(grad_T_i)) grad_T_i = grad_of(ii_Ti, inv_xjac, inv_R, R_s, R_t, R_phi, Z_s, Z_t, Z_phi, P_s, P_t, P_phi, T_norm)
+      if (present(grad_T_e)) grad_T_e = grad_of(ii_Te, inv_xjac, inv_R, R_s, R_t, R_phi, Z_s, Z_t, Z_phi, P_s, P_t, P_phi, T_norm)
     end if
   end if
   
   contains
 
     ! Helper function using suffix to avoid masking parent variables
-    pure function grad_of(ii_, inv_xjac_, inv_R_, R_s_, R_t_, Z_s_, Z_t_, &
+    pure function grad_of(ii_, inv_xjac_, inv_R_, R_s_, R_t_, R_phi_, Z_s_, Z_t_, Z_phi_, &
                           P_s_, P_t_, P_phi_, T_norm_) result(g)
       integer, intent(in)             :: ii_
       real*8, intent(in)              :: inv_xjac_, inv_R_, T_norm_
-      real*8, intent(in)              :: R_s_, R_t_, Z_s_, Z_t_
+      real*8, intent(in)              :: R_s_, R_t_, R_phi_, Z_s_, Z_t_, Z_phi_
       real*8, intent(in)              :: P_s_(:), P_t_(:), P_phi_(:)
       real*8                          :: g(3)
   
-      g(1) = T_norm_ * ((  P_s_(ii_) * Z_t_ - P_t_(ii_) * Z_s_) * inv_xjac_)
-      g(2) = T_norm_ * ((- P_s_(ii_) * R_t_ + P_t_(ii_) * R_s_) * inv_xjac_)
-      g(3) = T_norm_ * (   P_phi_(ii_) * inv_R_ )
+      g(1) = (  P_s_(ii_) * Z_t_ - P_t_(ii_) * Z_s_) * inv_xjac_  ! derivative in R
+      g(2) = (- P_s_(ii_) * R_t_ + P_t_(ii_) * R_s_) * inv_xjac_  ! derivative in Z
+      g(3) =    P_phi_(ii_) - R_phi_ * g(1) - Z_phi_ * g(2)        ! derivative in phi
+
+      ! Normalizations
+      g = g * T_norm_
+      g(3) = g(3) * inv_R_
     end function grad_of
 
 end subroutine calc_NeTeTi
@@ -383,10 +401,15 @@ subroutine calc_NeTevpar(fields, time, i_elm, st, phi, n_e, T_e, vpar, grad_T_e)
 
   real*8, dimension(3) :: P, P_s, P_t, P_phi, P_time
   real*8               :: R, R_s, R_t, Z, Z_s, Z_t, xjac
+#if STELLARATOR_MODEL
+  real*8               :: R_phi, Z_phi
+#endif
   real*8               :: T_norm !< temperature normalisation
   real*8               :: v_norm !< vpar normalisation
 
-#if (JOREK_MODEL == 400)
+#if STELLARATOR_MODEL
+  call fields%interp_PRZP_1(time,i_elm,[5,6,7],3,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,R_phi,Z,Z_s,Z_t,Z_phi)
+#elif (JOREK_MODEL == 400)
   ! electron temperature
   call fields%interp_PRZ(time,i_elm,[5,8,7],3,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t)
 #else
@@ -407,9 +430,14 @@ subroutine calc_NeTevpar(fields, time, i_elm, st, phi, n_e, T_e, vpar, grad_T_e)
   if (present(grad_T_e)) then
 
     xjac = jac(R_s,R_t,Z_s,Z_t)
-    grad_T_e = T_norm*[(  P_s(2) * Z_t - P_t(2) * Z_s)/ xjac, &
-                     (- P_s(2) * R_t + P_t(2) * R_s)/ xjac, &
-                     P_phi(2)/R]
+    grad_T_e(1:2) = [(  P_s(2) * Z_t - P_t(2) * Z_s ) / xjac, &
+                     (- P_s(2) * R_t + P_t(2) * R_s ) / xjac]
+#if STELLARATOR_MODEL
+    grad_T_e(3)   = P_phi(2) - R_phi*grad_T_e(1) - Z_phi*grad_T_e(2)
+#else
+    grad_T_e(3)   = P_phi(2)/R
+#endif
+    grad_T_e = T_norm * grad_T_e
   end if
 end subroutine calc_NeTevpar
 
