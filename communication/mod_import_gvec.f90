@@ -386,7 +386,7 @@ subroutine read_gvec_import(node_list, element_list, file_name, is_test, ierr)
       node_list%node(i_node)%pressure(4) = P_four_st(i_theta, i_rad, n_max+1) * s_factor * theta_factor * 1.0 / 9.0
 
       ! Read in radial coordinate - Assumes that the imported GVEC data is uniform radially
-      node_list%node(i_node)%r_tor_eq(1) = (i_rad-1) / float(n_flux-1)
+      node_list%node(i_node)%r_tor_eq(1) = (i_rad-1) / float(n_rad-1)
       node_list%node(i_node)%r_tor_eq(2) = s_factor * 1.0 / 3.0
       node_list%node(i_node)%r_tor_eq(3) = 0.0
       node_list%node(i_node)%r_tor_eq(4) = 0.0
