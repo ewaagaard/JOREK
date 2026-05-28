@@ -37,7 +37,7 @@ integer, parameter :: n_particles = 1
 call sim%initialize(num_groups=1)
 
 ! 3. Set up the field reader
-fieldreader = read_jorek_fields_interp_linear(basename='jorek_restart', i=-1)
+fieldreader = read_jorek_fields_interp_linear(basename='jorek', i=-1)
 call with(sim, fieldreader)
 
 ! 4. Allocate a particle of type particle_kinetic_leapfrog
