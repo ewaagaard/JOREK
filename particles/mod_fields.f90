@@ -433,7 +433,7 @@ subroutine calc_NeTevpar(fields, time, i_elm, st, phi, n_e, T_e, vpar, grad_T_e)
     grad_T_e(1:2) = [(  P_s(2) * Z_t - P_t(2) * Z_s ) / xjac, &
                      (- P_s(2) * R_t + P_t(2) * R_s ) / xjac]
 #if STELLARATOR_MODEL
-    grad_T_e(3)   = P_phi(2) - R_phi*grad_T_e(1) - Z_phi*grad_T_e(2)
+    grad_T_e(3)   = (P_phi(2) - R_phi*grad_T_e(1) - Z_phi*grad_T_e(2)) / R ! division by R to get correct units
 #else
     grad_T_e(3)   = P_phi(2)/R
 #endif
