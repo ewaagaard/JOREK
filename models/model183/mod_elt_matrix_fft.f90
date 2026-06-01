@@ -215,6 +215,7 @@ do i=1,n_vertex_max
             enddo
           enddo
 
+          ! kinetics extension
           if (use_ncs .or. use_ics) then
             do k=1, n_aux_var
               do in=1, n_tor
@@ -636,6 +637,7 @@ do ms=1, n_gauss
             
           call get_rhs(rhs_ij, eq)
            
+            ! kinetics extension
             if (use_ncs .or. use_ics) then
               aux_E0 = eq_aux_g(mp, E_idx_kin, ms, mt)
               rhs_ij(var_T, 1) = rhs_ij(var_T, 1) + eq(var_v,0,0,0,1) * aux_E0 * tstep &
