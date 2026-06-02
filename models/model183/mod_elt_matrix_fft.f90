@@ -637,7 +637,7 @@ do ms=1, n_gauss
             
           call get_rhs(rhs_ij, eq)
            
-            ! kinetics extension
+            ! kinetics extension - only impurities for now
             if (use_ncs .or. use_ics) then
               aux_E0 = eq_aux_g(mp, E_idx_kin, ms, mt)
               rhs_ij(var_T, 1) = rhs_ij(var_T, 1) + eq(var_v,0,0,0,1) * aux_E0 * tstep &
