@@ -1,6 +1,8 @@
-!>#Example 1: particles in static JOREK stellarator field
-!> This example studies particles in a static JOREK stellarator equilibrium field
-program ex2_stel
+!> Boris push test for W7-AS stellarator: Gaussian blob of W impurities,
+!> thermal velocity init, ADAS ioniz/recomb, Boris push + find_RZ_nearby.
+!> Killer test: energy conservation |v|^2 = const (Boris in static B, no E field).
+!> Derived from stel_ex2_push.f90 (W7-A); only change: blob center R=1.934 m (W7-AS axis).
+program stel_ex2_push_w7as
 use data_structure
 use mod_find_rz_nearby
 use mod_interp,        only: interp_PRZP, interp_gvec, mode_moivre
@@ -100,15 +102,15 @@ logical                   :: with_JOREK_proj
 !***********************************************************************
 
 with_psi_n_init =     .false. ! kinetic_develop_stellarator_elias: pa%n_e/T_e/psi_n removed; use Gaussian blob init
-with_v_thermal_init = .false. ! velocities unused without push
-with_push =           .false. ! no Boris push: coronal equilibrium test
-with_coll =           .false. ! no Coulomb collisions: isolate ioniz/recomb
+with_v_thermal_init = .true.  ! PUSH TEST: sample v from Maxwell at T_e=43 eV
+with_push =           .true.  ! PUSH TEST: enable Boris push + find_RZ_nearby
+with_coll =           .false. ! no Coulomb collisions: isolate push + ADAS
 with_thermal_force =  .false. ! no thermal force: irrelevant without collisions
 with_JOREK_proj =     .false.
 
 fix_ne_Te =           .true.  ! override T_e to ~43 eV (20*Temp_norm K) so ADAS limits are satisfied
 
-with_E_field =        .false. ! E-field not physical in static equilibrium
+with_E_field =        .false. ! E=0: static equilibrium, no work done -> |v|^2 conserved by Boris
 v_par_init =          0.d0
 
 !***********************************************************************
@@ -143,7 +145,7 @@ else
   if (with_psi_n_init .eq. .true.) then
     call intialise_particles_with_psi_n(sim, with_v_thermal_init)
   else
-    call initiliase_particles_as_gaussian_blob(sim, R_=1.99d0, Z_=0.d0, phi_=0.d0, & ! near W7-A axis: high n_e ensures ADAS limits not triggered
+    call initiliase_particles_as_gaussian_blob(sim, R_=1.934d0, Z_=0.d0, phi_=0.d0, & ! near W7-AS axis (R_axis~1.934 m): high n_e ensures ADAS limits not triggered
       sigma_r_=.005d0, sigma_z_=.005d0, sigma_phi_=0.d0, with_v_thermal_init_=with_v_thermal_init)
   end if
 
@@ -820,5 +822,5 @@ function generate_3d_gaussian(n_points, x0, y0, z0, sigma_x_, sigma_y_, sigma_z_
   end do
 end function generate_3d_gaussian
 
-end program ex2_stel
+end program stel_ex2_push_w7as
               
