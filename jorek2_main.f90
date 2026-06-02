@@ -28,6 +28,8 @@ program JOREK2
   use phys_module
   use mod_parameters
   use mod_log_params
+  use coupling_variables,    only: E_idx_kin           ! TEMP killer test
+  use mod_coupling_settings, only: use_ics             ! TEMP killer test
   use nodes_elements
   use pellet_module
   use equil_info
@@ -139,7 +141,8 @@ program JOREK2
   integer, dimension(:), pointer :: local_elms => null()
   real*8                   :: zjz, E_min, E_max
   logical                  :: to_quit, freeb_equil2
-  integer*4                :: rank, comm_size 
+  integer*4                :: rank, comm_size
+  real*8, parameter        :: S0_test = 0.d0  ! TEMP killer test: energy source per DOF (0 / 1.d-4 / -1.d-4)
   real*8                   :: zn,  dn_dpsi,  dn_dz,  dn_dpsi2,  dn_dz2,  dn_dpsi_dz,  dn_dpsi3,  dn_dpsi_dz2,  dn_dpsi2_dz
   real*8                   :: zT,  dT_dpsi,  dT_dz,  dT_dpsi2,  dT_dz2,  dT_dpsi_dz,  dT_dpsi3,  dT_dpsi_dz2,  dT_dpsi2_dz
   real*8                   :: zTi, dTi_dpsi, dTi_dz, dTi_dpsi2, dTi_dz2, dTi_dpsi_dz, dTi_dpsi3, dTi_dpsi_dz2, dTi_dpsi2_dz
@@ -660,6 +663,7 @@ write(*,*) "n elements:", element_list%n_elements
   call r3_info_print (-2, -2, 'INITIALIZATION')    ! timing
 
   if (.not. associated(aux_node_list)) allocate(aux_node_list) ! information of particle moments is stored in aux_list
+  n_aux_var = 1  ! TEMP killer test: allocate 1 aux channel
   call init_node_list(aux_node_list, n_nodes_max, aux_node_list%n_dof, n_aux_var)
 
   index_now = index_start  ! index_now: Index of current timestep
@@ -694,9 +698,12 @@ write(*,*) "n elements:", element_list%n_elements
 
     ! ---- For now running the jorek2_main should not include aux inputs
     aux_node_list%n_nodes = 0
+    use_ics   = .true.     ! TEMP killer test
+    E_idx_kin = 1          ! TEMP killer test
     do i = 1, size(aux_node_list%node, 1)
       aux_node_list%node(i)%values = 0.d0
       aux_node_list%node(i)%deltas = 0.d0
+      aux_node_list%node(i)%values(:, :, E_idx_kin) = S0_test  ! TEMP killer test
     enddo
 
     call update_equil_state(my_id,mhd_sim%node_list, mhd_sim%element_list, bnd_elm_list, xpoint, xcase)
