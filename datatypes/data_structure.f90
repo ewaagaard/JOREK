@@ -414,6 +414,7 @@ contains
     end do
     call tr_unregister_mem(sizeof(thread_struct),"thread_struct",CAT_MATELEM)
     deallocate(thread_struct)
+    nullify(thread_struct)      ! for kinetic_main stellarator model
   end subroutine del_thread_buffers
 
 end module data_structure
