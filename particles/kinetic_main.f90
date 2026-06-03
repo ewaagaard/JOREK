@@ -44,6 +44,7 @@ use mod_initialise_particles
 use equil_info
 use mod_output_file_routines, only: write_to_outputfile
 use mod_impurity,        only: init_imp_adas
+use mod_equations, only: init_eq_struct
 
 use phys_module, only: index_now
 use phys_module, only: tstep,tstep_n,restart_particles, restart, t_start, nout
@@ -236,6 +237,11 @@ aux_node_list => jorek_feedback%node_list
 allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, n_aux_var))
 
 jorek_feedback%rhs = 0.d0
+
+! Define init_eq_struct for semianalytical model 183
+#if defined(SEMIANALYTICAL)
+call init_eq_struct()
+#endif
 
 ! --- Setting up jorek timestepper
 ! For proper timestepping, the projections need to be defined before the jorek timestepper
