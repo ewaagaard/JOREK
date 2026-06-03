@@ -460,7 +460,15 @@ subroutine construct_matrix(mhd_sim, local_elms, n_local_elms, a_mat, rhs_vec, h
     call global_matrix_structure_vacuum(mhd_sim%node_list, mhd_sim%bnd_node_list, a_mat, i_tor_min=1, i_tor_max=n_tor)
   endif
 
-
+  ! Pre-initialize private node arrays to avoid Intel IFX 2025 bug:
+  ! private/firstprivate on derived types with uninitialized allocatable
+  ! components crashes in __kmpc_fork_call. init_node sets values/deltas
+  ! to allocated state so firstprivate can safely copy descriptors.
+  do iv = 1, n_vertex_max
+    call init_node(nodes(iv),        n_var)
+    call init_node(aux_nodes(iv),    n_var)
+    call init_node(nodes_father(iv), n_var)
+  end do
  
   ! --- Declare shared and private variables for omp
   !$omp parallel default(none) &
