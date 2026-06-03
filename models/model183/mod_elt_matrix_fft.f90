@@ -23,8 +23,8 @@ use mod_semianalytical
 use mod_equations
 use mod_chi
 use mod_sources
-use coupling_variables
-use mod_coupling_settings
+! use coupling_variables ! MVP - no back-coupling yet
+! use mod_coupling_settings ! MVP - no back-coupling yet
 
 implicit none
  
@@ -62,7 +62,7 @@ real*8     :: rho0, rho0_s, rho0_ss
 real*8     :: T0_i, T0_i_s, T0_i_ss
 real*8     :: T0_e, T0_e_s, T0_e_ss
 real*8     :: BigR_x, vv2, eta_T, visco_T, deta_dT, d2eta_d2T, dvisco_dT
-real*8     :: aux_E0
+! real*8     :: aux_E0
 real*8     :: theta, zeta, reta
 logical    :: xpoint2, use_fft
 
@@ -102,7 +102,7 @@ real*8, dimension(n_gauss, n_gauss)        :: s_norm
 
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: eq_g, eq_s, eq_t, eq_p, eq_ss, eq_st, eq_tt, eq_pp, eq_sp, eq_tp
 real*8, dimension(n_plane,n_var,n_gauss,n_gauss) :: delta_g, delta_s, delta_t, delta_p
-real*8, dimension(n_plane,n_aux_var,n_gauss,n_gauss) :: eq_aux_g
+! eq_aux_g: MVP placeholder — kinetic backcoupling disabled
 
 real*8, dimension(:,:,:,:,:), pointer :: eq
 real*8, dimension(n_var)              :: eq_px, eq_py
@@ -151,7 +151,6 @@ eq_g = 0.d0; eq_s  = 0.d0; eq_t  = 0.d0; eq_st = 0.d0; eq_ss = 0.d0; eq_tt = 0.d
 eq_p = 0.d0; eq_pp = 0.d0; eq_sp = 0.d0; eq_tp = 0.d0
 
 delta_g = 0.d0; delta_s = 0.d0; delta_t = 0.d0; delta_p = 0.d0
-eq_aux_g = 0.d0
 
 eq = 0.d0
 
@@ -215,15 +214,15 @@ do i=1,n_vertex_max
             enddo
           enddo
 
-          ! kinetics extension
-          if (use_ncs .or. use_ics) then
-            do k=1, n_aux_var
-              do in=1, n_tor
-                eq_aux_g(mp,k,ms,mt) = eq_aux_g(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) &
-                                       * element%size(i,j) * H(i,j,ms,mt) * HZ(in,mp)
-              enddo
-            enddo
-          endif
+          ! kinetics extension - not yet for MVP
+          !if (use_ncs .or. use_ics) then
+          !  do k=1, n_aux_var
+          !    do in=1, n_tor
+          !      eq_aux_g(mp,k,ms,mt) = eq_aux_g(mp,k,ms,mt) + aux_nodes(i)%values(in,j,k) &
+          !                             * element%size(i,j) * H(i,j,ms,mt) * HZ(in,mp)
+          !    enddo
+          !  enddo
+          ! endif
 
           if (keep_current_prof) then
             do in=1,n_tor
@@ -638,12 +637,12 @@ do ms=1, n_gauss
           call get_rhs(rhs_ij, eq)
            
             ! kinetics extension - only impurities for now
-            if (use_ncs .or. use_ics) then
-              aux_E0 = eq_aux_g(mp, E_idx_kin, ms, mt)
-              rhs_ij(var_T, 1) = rhs_ij(var_T, 1) + eq(var_v,0,0,0,1) * aux_E0 * tstep &
-                                  - (gamma-1.d0) * eq(var_v,0,0,0,1) * eq_aux_g(mp, mom_par_idx_kin, ms, mt) &
-                                  * eq_g(mp, var_Vpar, ms, mt) * tstep
-            endif
+            ! if (use_ncs .or. use_ics) then
+            !  aux_E0 = eq_aux_g(mp, E_idx_kin, ms, mt)
+            !  rhs_ij(var_T, 1) = rhs_ij(var_T, 1) + eq(var_v,0,0,0,1) * aux_E0 * tstep ! &
+            !                     ! - (gamma-1.d0) * eq(var_v,0,0,0,1) * eq_aux_g(mp, mom_par_idx_kin, ms, mt) &
+            !                     ! * eq_g(mp, var_Vpar, ms, mt) * tstep
+            !endif
 
            ! Add Jacobian pre-factor to contributions
            do i_var=1,n_var
