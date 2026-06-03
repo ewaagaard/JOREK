@@ -97,6 +97,9 @@ subroutine setup_solvers(this, sim)
   use vacuum_equilibrium,   only: import_external_fields
   use mod_startup_teardown, only: sanity_checks
   use mod_log_params,       only: log_parameters
+#if STELLARATOR_MODEL
+  use mod_chi, only: compute_chi_on_gauss_points
+#endif
 
   implicit none
 
@@ -235,7 +238,17 @@ subroutine setup_solvers(this, sim)
   call update_deltas(this%mhd_sim%node_list,this%deltas)
                                    
   call global_matrix_structure(this%mhd_sim%node_list, this%mhd_sim%element_list, this%mhd_sim%bnd_elm_list, this%mhd_sim%freeboundary,&
-                                 this%mhd_sim%local_elms, this%mhd_sim%n_local_elms, this%a_mat, i_tor_min=1, i_tor_max=n_tor)                                   
+                                 this%mhd_sim%local_elms, this%mhd_sim%n_local_elms, this%a_mat, i_tor_min=1, i_tor_max=n_tor)                        
+
+#if STELLARATOR_MODEL
+  ! Precompute vacuum field chi on Gauss points for stellarator element matrix.
+  ! In jorek2_main this is called explicitly after distribute_nodes_elements.
+  ! kinetic_main uses this action, so we need to call it here instead.
+  call compute_chi_on_gauss_points(sim%my_id, sim%fields%element_list, &
+                                    sim%fields%node_list, &
+                                    this%mhd_sim%local_elms, &
+                                    this%mhd_sim%n_local_elms)
+#endif           
 
   call MPI_Barrier(MPI_COMM_WORLD,ierr)
   
