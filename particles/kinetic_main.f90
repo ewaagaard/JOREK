@@ -45,6 +45,7 @@ use equil_info
 use mod_output_file_routines, only: write_to_outputfile
 use mod_impurity,        only: init_imp_adas
 use mod_equations, only: init_eq_struct
+use mod_element_rtree, only: populate_element_rtree
 
 use phys_module, only: index_now
 use phys_module, only: tstep,tstep_n,restart_particles, restart, t_start, nout
@@ -122,6 +123,11 @@ if (sim%my_id .eq. 0) call boundary_from_grid(sim%fields%node_list, sim%fields%e
 call broadcast_boundary(sim%my_id, bnd_elm_list, bnd_node_list)
 call update_equil_state(sim%my_id, sim%fields%node_list, sim%fields%element_list, bnd_elm_list, xpoint, xcase )
 call broadcast_equil_state(sim%my_id)
+
+! populate R-tree so find_RZP works in initialize_puff_valve
+#if STELLARATOR_MODEL
+call populate_element_rtree(sim%fields%node_list, sim%fields%element_list, use_3D_rtree=.true.)
+#endif
 
 ! setting up the particles
 if (restart_particles) then
