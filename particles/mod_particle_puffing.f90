@@ -143,6 +143,7 @@ subroutine initialize_puff_valve(sim, valve_num, new)
   type(particle_puffing), intent(inout)          :: new
   type(type_valve)                               :: valve
   integer                                        :: ifail
+  integer                                        :: checked_elms_dummy ! for find_RZP
 
   valve = valves(valve_num)
 
@@ -155,7 +156,7 @@ subroutine initialize_puff_valve(sim, valve_num, new)
     !> For valid valve types, check that it is within the domain ------------
     !> (add a case here when implementing new valve types)
     case ('circ')
-      call find_RZ(sim%fields%node_list, sim%fields%element_list, valve%R_valve_loc, valve%Z_valve_loc, new%val_R, new%val_Z, &
+      call find_RZP(sim%fields%node_list, sim%fields%element_list, valve%R_valve_loc, valve%Z_valve_loc, valve%phi, new%val_R, new%val_Z, &
       new%val_i_elm, new%val_s, new%val_t ,ifail)
 
     case ('poly')
