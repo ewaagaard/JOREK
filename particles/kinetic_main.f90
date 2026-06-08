@@ -124,11 +124,6 @@ call broadcast_boundary(sim%my_id, bnd_elm_list, bnd_node_list)
 call update_equil_state(sim%my_id, sim%fields%node_list, sim%fields%element_list, bnd_elm_list, xpoint, xcase )
 call broadcast_equil_state(sim%my_id)
 
-! populate R-tree so find_RZP works in initialize_puff_valve
-#if STELLARATOR_MODEL
-call populate_element_rtree(sim%fields%node_list, sim%fields%element_list, use_3D_rtree=.true.)
-#endif
-
 ! setting up the particles
 if (restart_particles) then
   ! reading the particles from a file
