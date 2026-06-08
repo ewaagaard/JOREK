@@ -584,15 +584,23 @@ integer, parameter :: i_var(3) = [1,2,7]
 real*8             :: P(3), P_s(3), P_t(3), P_phi(3), P_time(3) ! Placeholder for evaluating variables and derivatives locally
 ! Values
 real*8             :: R, R_s, R_t, Z, Z_s, Z_t
+#if STELLARATOR_MODEL
+  real*8 :: R_phi, Z_phi
+#endif
 ! Others
 real*8             :: inv_st_jac, R_inv
 real*8             :: psi_R, psi_Z, U_R, U_Z, U_phi, t_norm
 real*8             :: vpar, v_R, v_Z, v_phi
 t_norm  = sqrt(mu_zero * ATOMIC_MASS_UNIT * central_mass * central_density * 1.d20) ! 1 jorek time unit in seconds
 
-! Interpolate the fields to get psi and U at the current position (and the
-! changes u_n - u(n-1))
-call fields%interp_PRZ(time, i_elm, i_var, 3, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
+#if STELLARATOR_MODEL
+  call fields%interp_PRZP_1(time, i_elm, i_var, 3, st(1), st(2), phi, &
+       P, P_s, P_t, P_phi, P_time, R, R_s, R_t, R_phi, Z, Z_s, Z_t, Z_phi)
+#else
+  ! Interpolate the fields to get psi and U at the current position (and the
+  ! changes u_n - u(n-1))
+  call fields%interp_PRZ(time, i_elm, i_var, 3, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
+#endif
 
 R_inv = 1.d0/R
 inv_st_jac = 1.d0/jac(R_s,R_t,Z_s,Z_t)
@@ -602,7 +610,13 @@ psi_R    = (  P_s(1) * Z_t - P_t(1) * Z_s ) * inv_st_jac
 psi_Z    = (- P_s(1) * R_t + P_t(1) * R_s ) * inv_st_jac
 U_R      = (  P_s(2) * Z_t - P_t(2) * Z_s ) * inv_st_jac
 U_Z      = (- P_s(2) * R_t + P_t(2) * R_s ) * inv_st_jac
-U_phi    = P_phi(2)
+#if STELLARATOR_MODEL
+  ! Chain-rule correction
+  U_phi = P_phi(2) - R_phi * U_R - Z_phi * U_Z
+#else
+  U_phi = P_phi(2)
+#endif
+
 
 ! Calculate the velocity vector (see http://jorek.eu/wiki/doku.php?id=reduced_mhd)
 vpar  = P(3)
