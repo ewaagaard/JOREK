@@ -7,6 +7,13 @@ use mod_event
 use mod_fields
 use mod_interp
 implicit none
+
+#if STELLARATOR_MODEL
+  logical, parameter :: use_3d_rtree_kin = .true.
+#else
+  logical, parameter :: use_3d_rtree_kin = .false.
+#endif
+
 private
 public jorek_fields_interp_linear, read_jorek_fields_interp_linear, last_file_before_time
 
@@ -401,7 +408,8 @@ subroutine do_read(this, sim, ev)
         end if
         inquire(file=trim(restart_file), exist=file_exists)
         if (file_exists) then
-          call import_hdf5_restart(f%node_list,f%element_list,restart_file,this%rst_format,ierr)
+          call import_hdf5_restart(f%node_list, f%element_list, restart_file, this%rst_format, ierr, &
+                                  use_3D_rtree=use_3d_rtree_kin)
           f%static = .true.
         else
           if (my_id .eq. 0) write(*,*) "ERROR: file ", trim(restart_file), " does not exist"
@@ -433,7 +441,8 @@ subroutine do_read(this, sim, ev)
           write(restart_file,'(A,A)') trim(tmp_name), '.h5'
           inquire(file=trim(restart_file), exist=file_exists)
           if (file_exists) then
-            call import_hdf5_restart(f%node_list,f%element_list,trim(restart_file),this%rst_format,ierr)
+            call import_hdf5_restart(f%node_list, f%element_list, restart_file, this%rst_format, ierr, &
+                                    use_3D_rtree=use_3d_rtree_kin)
             if (ierr .ne. 0) then
               if (my_id .eq. 0) write(*,*) "ERROR: cannot open restart file"
               call exit(1)
@@ -463,7 +472,8 @@ subroutine do_read(this, sim, ev)
           inquire(file=trim(restart_file), exist=file_exists)
           if (file_exists) then
             next_file_found=.true.
-            call merge_restart(f%node_list, f%element_list, trim(restart_file), this%rst_format,my_id, ierr)
+            call merge_restart(f%node_list, f%element_list, trim(restart_file), this%rst_format,my_id, ierr, &
+                               use_3D_rtree=use_3d_rtree_kin)
             if (ierr .ne. 0) then
               if (my_id .eq. 0) write(*,*) "ERROR: cannot open restart file"
               call exit(1)
@@ -519,7 +529,7 @@ end subroutine do_read
 
 !> Import a binary restart file and merges it with the values currently known
 !> This can then be used to interpolate linearly between any two restart files
-subroutine merge_restart(node_list,element_list, restart_file, format_rst,my_id, ierr)
+subroutine merge_restart(node_list,element_list, restart_file, format_rst,my_id, ierr, use_3D_rtree)
   use data_structure
   use phys_module
   use mod_import_restart
@@ -532,6 +542,7 @@ subroutine merge_restart(node_list,element_list, restart_file, format_rst,my_id,
   integer,                 intent(out)       :: ierr
   integer,                 intent(in)        :: format_rst !< Restart file format
   integer,                 intent(in)        :: my_id
+  logical, optional,       intent(in)        :: use_3D_rtree
 
   ! --- Internal variables
   real*8, allocatable, dimension(:,:,:,:) :: values
@@ -548,8 +559,8 @@ subroutine merge_restart(node_list,element_list, restart_file, format_rst,my_id,
   tstart_old = t_start
 
   ! Import new values
-  call import_hdf5_restart(node_list,element_list, restart_file, format_rst, ierr)
-
+  call import_hdf5_restart(node_list, element_list, restart_file, format_rst, ierr, &
+                           use_3D_rtree=use_3D_rtree)
   ! Calculate deltas as values_new - values_old
   !$omp parallel do default(shared) private(inode)
   do inode=1,node_list%n_nodes
