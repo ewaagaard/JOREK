@@ -269,9 +269,7 @@ contains
                    ! Apply loop voltage to drive psi evolution (n=0 mode at boundary)
                    ! Physics: loop_voltage drives Ohmic current via Faraday's law:
                    !   d(psi)/dt = -V_loop => psi(t) = psi(0) - V_loop * t
-                   ! This causes magnetic flux to evolve, changing topology over time.
-                   ! Used for: tearing mode studies, current ramp scenarios, stellarator
-                   ! transport with evolving fields.
+                   ! Similar functionality exists in model 600
                    if ( loop_voltage .ne. 0.d0 ) then
                       if ( in == 1 ) then  ! n=0 mode only
                          if ( (.not. is_freebound(in, var_psi)) ) then

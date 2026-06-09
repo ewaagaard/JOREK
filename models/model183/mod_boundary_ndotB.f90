@@ -166,7 +166,7 @@ subroutine finalize_boundary_ndotB()
   use mpi
   use mod_parameters, only: n_period
   use phys_module, only: vpar_sbc_alpha0, vpar_sbc_strength, vpar_sbc_smooth_sign, &
-                         vpar_sbc_angle_scale, T_0, GAMMA, ndotB_evolving
+                         vpar_sbc_angle_scale, T_0, GAMMA, ndotB_evolving, loop_voltage
   implicit none
   real*8, parameter :: pi = 3.14159265358979d0
   integer :: i, mp, in, n_with_data, ierr, my_id
@@ -314,7 +314,11 @@ subroutine finalize_boundary_ndotB()
       " max=", ndotB_max, " avg=", ndotB_avg
     if (.not. ndotB_evolving) then
       write(*,'(A)') "   ndotB_evolving=.false.: values frozen for subsequent timesteps"
-      write(*,'(A)') "   NOTE: ndotB_evolving=.true. for loop_voltage/topology-changing runs not yet tested."
+    endif
+
+    if (loop_voltage .ne. 0.d0 .and. .not. ndotB_evolving) then
+      write(*,'(A)') "WARNING: loop_voltage != 0 but ndotB_evolving=.false."
+      write(*,'(A)') "  SBC will use frozen t=0 field geometry. Set ndotB_evolving=.true. for consistency."
     endif
   endif
   
