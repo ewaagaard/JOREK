@@ -252,7 +252,7 @@ do ms=1,n_gauss
     grad_Psi0 = (/ Psi0_x, Psi0_y, Psi0_phi/BigR /)
     
     ! B = grad(chi) + (grad(Psi) x grad(chi)) / (F0*R)
-    ! This uses either Dommaschk potential evaluated at each Gauss point if USE_DOMM=1, or the external vacuum field if if USE_EXT_FIELD=1 
+    ! This uses either Dommaschk potential evaluated at each Gauss point if USE_DOMM=1, or the external vacuum field if USE_EXT_FIELD=1 
 
     B_full(1) = chi(1,0,0) + (Psi0_y*chi(0,0,1) - Psi0_phi*chi(0,1,0))/(F0*BigR)
     B_full(2) = chi(0,1,0) - (Psi0_x*chi(0,0,1) - Psi0_phi*chi(1,0,0))/(F0*BigR)
