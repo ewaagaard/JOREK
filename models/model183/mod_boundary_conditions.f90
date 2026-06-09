@@ -265,41 +265,6 @@ contains
                          endif
 
                       endif
-                      
-                      !------------------------------------ divertor/frozen nodes (type 4)
-                      ! Type 4: Divertor region nodes (frozen, no evolution)
-                      ! All variables frozen at current values: delta = 0
-                      ! Used for extended grids where divertor region should not evolve
-                      if (node_list%node(inode)%boundary .eq. 4) then
-                         ! Freeze ALL variables for this node
-                         if ((k .eq. var_Psi) .or. (k .eq. var_Phi) .or. (k .eq. var_zj) .or. &
-                              (k .eq. var_w) .or. (k .eq. var_rho) .or. (k .eq. var_T) .or. (k .eq. var_Vpar) .or. &
-                              (k .eq. var_Ti) .or. (k .eq. var_Te)) then
-                           
-                           ! Apply Dirichlet BC: delta = 0 (no change from current value)
-                           ! For all 4 degrees of freedom (value and 3 derivatives)
-                           index_node = node_list%node(inode)%index(1)
-                           call boundary_conditions_add_one_entry(                 &
-                                  index_node, k, in, index_node, k, in,            &
-                                  zbig, index_min, index_max, a_mat)
-                           ! RHS = 0 (default) → delta = 0 → frozen at current value
-                           
-                           index_node = node_list%node(inode)%index(2)
-                           call boundary_conditions_add_one_entry(                 &
-                                  index_node, k, in, index_node, k, in,            &
-                                  zbig, index_min, index_max, a_mat)
-                           
-                           index_node = node_list%node(inode)%index(3)
-                           call boundary_conditions_add_one_entry(                 &
-                                  index_node, k, in, index_node, k, in,            &
-                                  zbig, index_min, index_max, a_mat)
-                           
-                           index_node = node_list%node(inode)%index(4)
-                           call boundary_conditions_add_one_entry(                 &
-                                  index_node, k, in, index_node, k, in,            &
-                                  zbig, index_min, index_max, a_mat)
-                         endif
-                      endif
 
                    enddo  ! k=1,n_var (variables loop)
                    
