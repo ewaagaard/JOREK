@@ -251,6 +251,7 @@ subroutine finalize_boundary_ndotB()
   do i = 1, n_nodes_stored
     do in = 1, n_tor_stored
       do mp = 1, n_plane_stored
+        ! Mode in=2 has n_period oscillations over 2pi (one per field period) -- lowest stellarator mode.
         phi = 2.d0 * pi * dble(mp-1) / dble(n_plane_stored * n_period)
         ndotB_val = ndotB_per_node_plane(i, mp)
         
