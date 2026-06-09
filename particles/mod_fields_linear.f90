@@ -509,7 +509,7 @@ subroutine do_read(this, sim, ev)
     call broadcast_elements(my_id, f%element_list)
     call broadcast_nodes(my_id, f%node_list)
     call broadcast_phys(my_id)
-    call update_neighbours(f%node_list, f%element_list) ! needs to be done on every process to have an RTree everywhere
+    call update_neighbours(f%node_list, f%element_list, use_3D_rtree=use_3d_rtree_kin) ! needs to be done on every process to have an RTree everywhere
     call MPI_Bcast(f%time_prev, 1, MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
     call MPI_Bcast(f%time_now, 1, MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
     call MPI_Bcast(sim%time, 1, MPI_REAL8, 0, MPI_COMM_WORLD, ierr)
