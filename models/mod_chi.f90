@@ -499,6 +499,11 @@ module mod_chi
       write (*,*) 
     endif
     
+    ! Pre-initialize to avoid Intel IFX 2025 firstprivate allocatable crash
+    do i_vertex = 1, n_vertex_max
+      call init_node(nodes(i_vertex), n_var)
+    end do
+    
     ! --- Declare shared and private variables for omp
     !$omp parallel default(none) &
     !$omp   shared(element_list,node_list, H, H_s, H_t, H_ss, H_tt, H_st, HZ_coord, HZ_coord_p, HZ_coord_pp, local_elms, n_local_elms)  &
