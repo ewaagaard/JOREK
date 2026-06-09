@@ -199,61 +199,7 @@ contains
 
                          if ( (.not. is_freebound(in,k)) ) then ! apply fixed boundary conditions where necessary
 
-                            index_node = node_list%node(inode)%index(1)
-
-                            call boundary_conditions_add_one_entry(                 &
-                                   index_node, k, in, index_node, k, in,            &
-                                   zbig, index_min, index_max, a_mat)
-                            
-                            ! v_par Dirichlet BC: add RHS term for non-zero target
-                            ! For n=0 mode, use toroidally-averaged ndotB
-                            ! For n>0 modes, use Fourier coefficients of ndotB
-                            if (k .eq. var_Vpar) then
-                              ! Compute angle-dependent target if SBC enabled
-                              if (vpar_sbc_enable) then
-                                ! Temperature for sound speed: local edge T or core T_0
-                                if (sbc_use_local_T) then
-                                  T_local = node_list%node(inode)%values(1,1,var_T)
-                                  if (T_local < 1.d-8) T_local = T_0  ! Fallback for numerical zeros
-                                else
-                                  T_local = T_0  ! Use core temperature (default)
-                                endif
-                                cs = sqrt(GAMMA * T_local)
-                                alpha0_rad = vpar_sbc_alpha0 * pi / 180.d0
-                                
-                                if (in .eq. 1) then
-                                  ! n=0 mode: use toroidally-averaged ndotB
-                                  ndotB_norm = get_ndotB_at_node(inode)
-                                  alpha_rad = asin(min(1.d0, max(-1.d0, abs(ndotB_norm))))
-                                  factor_sbc = tanh(alpha_rad / alpha0_rad)
-                                  vpar_target = sign(1.d0, ndotB_norm) * cs * factor_sbc * vpar_sbc_strength
-                                  
-                                  ! Get current vpar value at this node (n=0 mode)
-                                  vpar_current = node_list%node(inode)%values(1,1,var_Vpar)
-                                  delta_vpar = vpar_target - vpar_current
-                                  
-                                  call boundary_conditions_add_RHS(                     &
-                                         index_node, k, in, index_min, index_max,       &
-                                         rhs_loc, zbig * delta_vpar,                    &
-                                         a_mat%i_tor_min, a_mat%i_tor_max)
-                                else
-                                  ! n>0 modes: use precomputed vpar_target Fourier coefficients
-                                  k_fourier = in / 2 + 1
-                                  call get_vpar_target_fourier_at_node(inode, k_fourier, vpar_target_cos, vpar_target_sin)
-                                  if (mod(in, 2) .eq. 0) then
-                                    delta_vpar = vpar_target_cos - node_list%node(inode)%values(in,1,var_Vpar)
-                                  else
-                                    delta_vpar = -vpar_target_sin - node_list%node(inode)%values(in,1,var_Vpar)
-                                  endif
-                                  
-                                  call boundary_conditions_add_RHS(                     &
-                                         index_node, k, in, index_min, index_max,       &
-                                         rhs_loc, zbig * delta_vpar,                    &
-                                         a_mat%i_tor_min, a_mat%i_tor_max)
-                                endif
-                              endif
-                            endif
-
+                            ! --- constrain second tangential derivative DOF at type 2/3 nodes (X-point corner geometry)
                             index_node = node_list%node(inode)%index(3)
 
                             call boundary_conditions_add_one_entry(                 &
@@ -261,7 +207,6 @@ contains
                                    zbig, index_min, index_max, a_mat)
 
                          endif
-
                       endif
 
                    enddo  ! k=1,n_var (variables loop)
