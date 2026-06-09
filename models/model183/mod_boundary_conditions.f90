@@ -187,7 +187,8 @@ contains
                                    index_node, k, in, index_node, k, in,            &
                                    zbig, index_min, index_max, a_mat)
                             
-                            ! Derivative BC: zero for constant v_par (no RHS addition)
+                            ! Derivative BC: zero for constant v_par at boundary (no RHS addition)
+                            ! Acceptable for current test cases; revisit for production runs with steep angle gradients.
                             
                           endif
                         endif
