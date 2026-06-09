@@ -470,7 +470,7 @@ module mod_chi
     integer, intent(in) :: i_elm
     real*8,  intent(in) :: s, t, phi
     real*8, dimension(0:n_order-1,0:n_order-1,0:n_order-1) :: get_chi_corr_ext
-    real*8, dimension(n_order) :: B, B_s, B_t, B_st, B_p_coord, B_x, B_y, B_p    ! Index represents the direction of the field:  1: R, 2: Z, 3: phi
+    real*8, dimension(3) :: B, B_s, B_t, B_st, B_p_coord, B_x, B_y, B_p    ! Index represents the direction of the field:  1: R, 2: Z, 3: phi
     integer :: i_harm, i_tor, i_var, i_dim
     real*8  :: R, R_s, R_t, R_p, R_ss, R_tt, R_st, R_pp, R_sp, R_tp
     real*8  :: Z, Z_s, Z_t, Z_p, Z_ss, Z_tt, Z_st, Z_pp, Z_sp, Z_tp
@@ -482,7 +482,7 @@ module mod_chi
                                                          Z,Z_s,Z_t,Z_p,Z_st,Z_ss,Z_tt,Z_sp,Z_tp,Z_pp)
     i_var = 6 ! This decides which variable to retrieve. In this case, 6 is for the vacuum field
     xjac =  R_s*Z_t - R_t*Z_s
-    do i_dim = 1,n_order
+    do i_dim = 1,3  ! R, Z, phi components
       call interp_gvec(node_list,element_list,i_elm,i_var,i_dim,1,s,t,B(i_dim),B_s(i_dim),B_t(i_dim), &
                                                                       B_harm_st,B_harm_ss,B_harm_tt)
       B_p(i_dim) = 0.0
