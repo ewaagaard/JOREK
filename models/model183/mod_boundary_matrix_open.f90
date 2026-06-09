@@ -328,8 +328,9 @@ do ms=1,n_gauss
     ! Particle flux SBC: pre-compute values that depend only on (mp,ms) Gauss point
     if (particle_flux_sbc_enable .or. heat_flux_sbc_enable) then
       rho_local = rho0_interp(mp,ms)
-      if (rho_local < 1.d-10) rho_local = rho_0  ! Fallback to namelist value
-      T_local = max(T0_interp(mp,ms), T_0)
+      if (rho_local < 1.d-10) rho_local = 1.d-10  ! Numerical floor, not core value
+      T_local = T0_interp(mp,ms)
+      if (T_local < 1.d-10) T_local = 1.d-10       ! Numerical floor only
       cs_local = sqrt(GAMMA * T_local)
       abs_ndotB = abs(bdotn_normalized) * particle_flux_sbc_angle_scale
       abs_ndotB_hflux = abs(bdotn_normalized) * heat_flux_sbc_angle_scale
