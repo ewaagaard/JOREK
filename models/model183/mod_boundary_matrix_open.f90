@@ -251,41 +251,12 @@ do ms=1,n_gauss
     Psi0_yphi = Psi0_py - x_p_y*Psi0_x - x_p(mp,ms)*Psi0_xy - y_p_y*Psi0_y - y_p(mp,ms)*Psi0_yy
     grad_Psi0 = (/ Psi0_x, Psi0_y, Psi0_phi/BigR /)
     
-#if defined(USE_EXT_FIELD)
-    ! Full equilibrium B field from b_vac_field (i_var=6)
-    ! This includes vacuum + response from GVEC equilibrium
-    ! Note: b_field (i_var=1) is not always exported, but b_vac_field is
-    i_var = 6  ! b_vac_field (always present when USE_EXT_FIELD exported)
-    do i_dim = 1, n_order
-      call interp_gvec(node_list, element_list, ielm, i_var, i_dim, 1, 1.d0, xgauss(ms), &
-                       B_interp(i_dim), B_s(i_dim), B_t(i_dim), B_harm_st, B_harm_ss, B_harm_tt)
-      B_p_coord(i_dim) = 0.d0
-      ! Add higher toroidal harmonics
-      do i_harm = 1, (n_coord_tor-1)/2
-        call interp_gvec(node_list, element_list, ielm, i_var, i_dim, 2*i_harm, 1.d0, xgauss(ms), &
-                         B_harm, B_harm_s, B_harm_t, B_harm_st, B_harm_ss, B_harm_tt)
-        B_interp(i_dim) = B_interp(i_dim) + B_harm * cos(mode_coord(2*i_harm)*phi)
-        B_p_coord(i_dim) = B_p_coord(i_dim) - B_harm * mode_coord(2*i_harm) * sin(mode_coord(2*i_harm)*phi)
-        
-        call interp_gvec(node_list, element_list, ielm, i_var, i_dim, 2*i_harm+1, 1.d0, xgauss(ms), &
-                         B_harm, B_harm_s, B_harm_t, B_harm_st, B_harm_ss, B_harm_tt)
-        B_interp(i_dim) = B_interp(i_dim) - B_harm * sin(mode_coord(2*i_harm)*phi)
-        B_p_coord(i_dim) = B_p_coord(i_dim) - B_harm * mode_coord(2*i_harm) * cos(mode_coord(2*i_harm)*phi)
-      end do
-    end do
-    B_full(1) = B_interp(1)  ! B_R
-    B_full(2) = B_interp(2)  ! B_Z
-    B_full(3) = B_interp(3)  ! B_phi
-#else
-    ! USE_DOMM path: B from analytic Dommaschk chi + psi cross-product correction
     ! B = grad(chi) + (grad(Psi) x grad(chi)) / (F0*R)
-    ! This uses the Dommaschk potential evaluated at each Gauss point.
-    ! No b_vac_field array needed (not allocated under USE_DOMM).
+    ! This uses either Dommaschk potential evaluated at each Gauss point if USE_DOMM=1, or the external vacuum field if if USE_EXT_FIELD=1 
 
     B_full(1) = chi(1,0,0) + (Psi0_y*chi(0,0,1) - Psi0_phi*chi(0,1,0))/(F0*BigR)
     B_full(2) = chi(0,1,0) - (Psi0_x*chi(0,0,1) - Psi0_phi*chi(1,0,0))/(F0*BigR)
     B_full(3) = chi(0,0,1)/BigR + (Psi0_x*chi(0,1,0) - Psi0_y*chi(1,0,0))/F0
-#endif
 
     ! Normal (outward from boundary, using tangent rotation)
     normal_R = -y_s(mp,ms)  ! perpendicular to tangent
