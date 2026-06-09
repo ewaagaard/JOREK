@@ -158,11 +158,8 @@ contains
                                          a_mat%i_tor_min, a_mat%i_tor_max)
                                 else
                                   ! n>0 modes: use precomputed vpar_target Fourier coefficients
-                                  ! JOREK toroidal basis: in=1:DC, in=2:+cos(nfp*phi), in=3:-sin(nfp*phi),
-                                  !   in=4:+cos(2*nfp*phi), in=5:-sin(2*nfp*phi), ...
-                                  ! Pairs (2,3),(4,5),... share the same Fourier harmonic k_fourier.
-                                  ! For physical vpar = A_k*cos + B_k*sin, the JOREK DOF for odd in
-                                  ! stores -B_k (to cancel the -sin basis), hence delta = -B_k - current.
+                                  ! JOREK toroidal basis: columns in=2,3 share harmonic k=1, in=4,5 share k=2, etc.
+                                  ! k_fourier = in/2 + 1 maps column index to harmonic index in vpar_target arrays.
                                   k_fourier = in / 2 + 1
                                   call get_vpar_target_fourier_at_node(inode, k_fourier, vpar_target_cos, vpar_target_sin)
                                   
