@@ -138,6 +138,9 @@ do i_elm=(i_shell-1)*n_tht+1, i_shell*n_tht
         end do
 
         Bgvec_boundary = (/ BR0, BZ0, BP0 /)
+
+        ! ndotB_bvac: vacuum field only (chi without psi cross-terms).
+        ! Under USE_DOMM: Dommaschk analytic field. Under USE_EXT_FIELD: interpolated b_vac_field.
         Bbvac_boundary = (/ chi(1,0,0), chi(0,1,0), chi(0,0,1)/RRgi /)
         ndotB_bvac = sum(n_perp*Bbvac_boundary)
 
