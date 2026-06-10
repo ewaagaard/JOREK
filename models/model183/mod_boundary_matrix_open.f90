@@ -259,7 +259,11 @@ do ms=1,n_gauss
     B_full(3) = chi(0,0,1)/BigR + (Psi0_x*chi(0,1,0) - Psi0_y*chi(1,0,0))/F0
 
     ! Normal (outward from boundary, using tangent rotation)
-    normal_R = -y_s(mp,ms)  ! perpendicular to tangent
+    ! direction(2)=3 for type 2 (stellarator) boundary nodes (set in construct_matrix_mod).
+    ! j2=direction(2)=3 means x_s, y_s accumulate t-derivatives = poloidal tangent along boundary.
+    ! j3=direction_perp=2 means x_t,y_t accumulate s-derivative-related terms = into-domain direction.
+    ! Outward normal = (-y_s, x_s) = rotation of poloidal tangent by 90 degrees.
+    normal_R = -y_s(mp,ms) 
     normal_Z =  x_s(mp,ms)
     normal_p = (x_p(mp,ms)*y_s(mp,ms) - x_s(mp,ms)*y_p(mp,ms))/BigR
     normal_mag = sqrt(normal_R**2 + normal_Z**2 + normal_p**2)
