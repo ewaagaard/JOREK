@@ -194,7 +194,9 @@ do i=1,2    ! sum over 2 verices
           
           ! Interpolate rho and T for particle flux SBC
           rho0_interp(mp,ms) = rho0_interp(mp,ms) + nodes(i)%values(in,j2,var_rho)*element_size_ij*H1(i,j,ms)*HZ(in,mp)
-          T0_interp(mp,ms) = T0_interp(mp,ms) + nodes(i)%values(in,j2,var_T)*element_size_ij*H1(i,j,ms)*HZ(in,mp)
+          if (var_T .gt. 0) then
+            T0_interp(mp,ms) = T0_interp(mp,ms) + nodes(i)%values(in,j2,var_T)*element_size_ij*H1(i,j,ms)*HZ(in,mp)
+          endif
         end do
       end do
     end do

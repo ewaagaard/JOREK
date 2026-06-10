@@ -144,9 +144,12 @@ contains
                               ! Compute angle-dependent target if SBC enabled
                               if (vpar_sbc_enable) then
                                 ! Temperature for sound speed: local edge T or norm. SOL T
-                                if (sbc_use_local_T) then
+                                if (sbc_use_local_T .and. var_T .gt. 0) then
                                   T_local = corr_neg_temp(node_list%node(inode)%values(1,1,var_T))
                                 else
+                                  ! Note: 2T mode (var_T=0) always falls back to T_1.
+                                  ! For physical 2T SBC, this should use Ti+Te at the boundary.
+                                  ! This requires separate implementation when 2T SBC is needed.
                                   T_local = corr_neg_temp(T_1)  ! Use normalized SOL temperature
                                 endif
                                 cs = sqrt(GAMMA * T_local)
