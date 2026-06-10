@@ -16,6 +16,7 @@ use mod_chi
 use mod_boundary_ndotB, only: accumulate_ndotB_at_node_plane
 use mod_interp, only: interp_gvec, interp_RZP
 use mod_model_settings, only: var_Psi, var_zj, var_rho, var_T
+use corr_neg, only: corr_neg_temp, corr_neg_dens
 implicit none
 
 type(type_element)   :: element
@@ -56,11 +57,6 @@ real*8  :: Btot, ndotB, bdotn_normalized
 
 ! Particle flux SBC variables
 real*8  :: rhs_ij_5, cs_local, rho_local, abs_ndotB, abs_ndotB_hflux
-
-! Variables for full B field interpolation from b_field (i_var=1)
-real*8, dimension(n_order) :: B_interp, B_s, B_t, B_p_coord
-integer :: i_dim, i_harm, i_var
-real*8  :: B_harm, B_harm_s, B_harm_t, B_harm_st, B_harm_ss, B_harm_tt
 
 type(type_node) :: nodes2(2), tmp_node
 
@@ -302,10 +298,8 @@ do ms=1,n_gauss
     
     ! Particle flux SBC: pre-compute values that depend only on (mp,ms) Gauss point
     if (particle_flux_sbc_enable .or. heat_flux_sbc_enable) then
-      rho_local = rho0_interp(mp,ms)
-      if (rho_local < 1.d-10) rho_local = 1.d-10  ! Numerical floor, not core value
-      T_local = T0_interp(mp,ms)
-      if (T_local < 1.d-10) T_local = 1.d-10       ! Numerical floor only
+      rho_local = corr_neg_dens(rho0_interp(mp,ms))
+      T_local = corr_neg_temp(T0_interp(mp,ms))
       cs_local = sqrt(GAMMA * T_local)
       abs_ndotB = abs(bdotn_normalized) * particle_flux_sbc_angle_scale
       abs_ndotB_hflux = abs(bdotn_normalized) * heat_flux_sbc_angle_scale
@@ -368,10 +362,6 @@ do ms=1,n_gauss
             
             RHS(ij6) = RHS(ij6) + rhs_ij_6 * wgauss(ms)
           endif
-          
-          ! Compute ij5, ij6 for LHS use (needed even if RHS was skipped due to if-condition)
-          ij5 = index_ij + 4*n_tor_local
-          ij6 = index_ij + 5*n_tor_local
           
           do k=1,n_vertex_max
             do l=1,n_order+1
