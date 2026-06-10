@@ -138,33 +138,8 @@ do i_elm=(i_shell-1)*n_tht+1, i_shell*n_tht
         end do
 
         Bgvec_boundary = (/ BR0, BZ0, BP0 /)
-
-        ! Interpolate GVEC vacuum field (b_vac_field, i_var=6) -- stores FULL field including F0/R
-        call interp_gvec(node_list,element_list,i_elm,6,1,1,ri,si,BvR0,dummy,dummy,dummy,dummy,dummy)
-        call interp_gvec(node_list,element_list,i_elm,6,2,1,ri,si,BvZ0,dummy,dummy,dummy,dummy,dummy)
-        call interp_gvec(node_list,element_list,i_elm,6,3,1,ri,si,Bvp0,dummy,dummy,dummy,dummy,dummy)
-        do i_tor=1,(n_coord_tor-1)/2
-          i_harm = 2*i_tor
-          call interp_gvec(node_list,element_list,i_elm,6,1,i_harm,ri,si,BvR0cos,dummy,dummy,dummy,dummy,dummy)
-          call interp_gvec(node_list,element_list,i_elm,6,2,i_harm,ri,si,BvZ0cos,dummy,dummy,dummy,dummy,dummy)
-          call interp_gvec(node_list,element_list,i_elm,6,3,i_harm,ri,si,Bvp0cos,dummy,dummy,dummy,dummy,dummy)
-          BvR0 = BvR0 + BvR0cos*cos(mode_coord(i_harm)*p)
-          BvZ0 = BvZ0 + BvZ0cos*cos(mode_coord(i_harm)*p)
-          Bvp0 = Bvp0 + Bvp0cos*cos(mode_coord(i_harm)*p)
-          call interp_gvec(node_list,element_list,i_elm,6,1,i_harm+1,ri,si,BvR0sin,dummy,dummy,dummy,dummy,dummy)
-          call interp_gvec(node_list,element_list,i_elm,6,2,i_harm+1,ri,si,BvZ0sin,dummy,dummy,dummy,dummy,dummy)
-          call interp_gvec(node_list,element_list,i_elm,6,3,i_harm+1,ri,si,Bvp0sin,dummy,dummy,dummy,dummy,dummy)
-          BvR0 = BvR0 - BvR0sin*sin(mode_coord(i_harm+1)*p)
-          BvZ0 = BvZ0 - BvZ0sin*sin(mode_coord(i_harm+1)*p)
-          Bvp0 = Bvp0 - Bvp0sin*sin(mode_coord(i_harm+1)*p)
-        end do
-
-        #if defined(USE_EXT_FIELD)
-                Bbvac_boundary = (/ BvR0, BvZ0, Bvp0 /)
-                ndotB_bvac = sum(n_perp*Bbvac_boundary)
-        #else
-                ndotB_bvac = 0.d0
-        #endif        
+        Bbvac_boundary = (/ chi(1,0,0), chi(0,1,0), chi(0,0,1)/RRgi /)
+        ndotB_bvac = sum(n_perp*Bbvac_boundary)
 
         ndotB = sum(n_perp*B_boundary)      
         ndotB_max = max(abs(ndotB), ndotB_max)
