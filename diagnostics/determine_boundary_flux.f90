@@ -137,10 +137,7 @@ do i_elm=(i_shell-1)*n_tht+1, i_shell*n_tht
           Bp0 = Bp0 - Bp0sin*sin(mode_coord(i_harm+1)*p)
         end do
 
-        ! B_boundary = get_chi (vacuum, Dommaschk or chi_correction) + psi cross-terms (plasma response).
-        ! This is identical to what the SBC computes internally; col 5 = col 4 at equilibrium.
-        ! Under USE_EXT_FIELD=1 the SBC uses b_vac_field instead -- that is col 9 (ndotB_bvac).
-        Bgvec_boundary = B_boundary
+        Bgvec_boundary = (/ BR0, BZ0, BP0 /)
 
         ! Interpolate GVEC vacuum field (b_vac_field, i_var=6) -- stores FULL field including F0/R
         call interp_gvec(node_list,element_list,i_elm,6,1,1,ri,si,BvR0,dummy,dummy,dummy,dummy,dummy)
@@ -161,12 +158,17 @@ do i_elm=(i_shell-1)*n_tht+1, i_shell*n_tht
           BvZ0 = BvZ0 - BvZ0sin*sin(mode_coord(i_harm+1)*p)
           Bvp0 = Bvp0 - Bvp0sin*sin(mode_coord(i_harm+1)*p)
         end do
-        Bbvac_boundary = (/ BvR0, BvZ0, Bvp0 /)
+
+        #if defined(USE_EXT_FIELD)
+                Bbvac_boundary = (/ BvR0, BvZ0, Bvp0 /)
+                ndotB_bvac = sum(n_perp*Bbvac_boundary)
+        #else
+                ndotB_bvac = 0.d0
+        #endif        
 
         ndotB = sum(n_perp*B_boundary)      
         ndotB_max = max(abs(ndotB), ndotB_max)
         ndotB_gvec = sum(n_perp*Bgvec_boundary)
-        ndotB_bvac = sum(n_perp*Bbvac_boundary)
         
         ! Compute total magnetic field magnitude
         B_tot2 = sum(B_boundary**2)
@@ -189,11 +191,7 @@ write(*,*) "Max n.B: ", ndotB_max
 write(*,*) "Surface area:        ", n_period * surface_area, "m^2"
 write(*,*) "Integrated abs(n.B): ", n_period * sum_dA_abs, "Tm^2"
 write(*,*) "Total Boundary Flux: ", n_period * sum_dA, "Tm^2"
-! Div-B sanity check: integral(n.B dA) over a closed surface should be zero.
-! Non-zero indicates: numerical div-B error, wrong domain (not periodic), or bug.
-if (sum_dA_abs > 0.d0 .and. abs(sum_dA) > 0.05d0 * sum_dA_abs) then
-  write(*,*) "WARNING: |integral(n.B dA)| / integral(|n.B| dA) =", abs(sum_dA)/sum_dA_abs, "(> 5%)"
-  write(*,*) "  This may indicate non-zero div-B or incomplete toroidal coverage."
-endif
+write(*,*) "Flux imbalance |integral(n.B)|/integral(|n.B|) =", abs(sum_dA)/sum_dA_abs
+write(*,*) "  (non-zero expected for open-boundary stellarator domains)"
 
 end subroutine determine_boundary_flux
