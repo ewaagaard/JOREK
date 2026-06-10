@@ -145,7 +145,10 @@ contains
                                 ! Temperature for sound speed: local edge T or core T_0
                                 if (sbc_use_local_T) then
                                   T_local = node_list%node(inode)%values(1,1,var_T)
-                                  if (T_local < 1.d-8) T_local = T_0  ! Fallback for numerical zeros
+                                  if (T_local < 1.d-8) then
+                                    T_local = T_0  ! Fallback for numerical zeros
+                                    write(*,*) 'WARNING: T_local too low at node', inode, ', falling back to T_0=', T_0
+                                  endif
                                 else
                                   T_local = T_0  ! Use core temperature (default)
                                 endif
