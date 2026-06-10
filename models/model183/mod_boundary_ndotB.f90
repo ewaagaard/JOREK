@@ -18,7 +18,7 @@ module mod_boundary_ndotB
   public :: finalize_boundary_ndotB
   public :: get_ndotB_at_node
   public :: get_ndotB_fourier_at_node
-  public :: get_vpar_target_fourier_at_node
+  public :: get_vpar_target_for_column
   
   ! Per-node storage (toroidally averaged, for backward compatibility)
   real*8, allocatable, save :: ndotB_per_node(:)
@@ -379,39 +379,37 @@ subroutine get_ndotB_fourier_at_node(inode, in, ndotB_cos, ndotB_sin)
   
 end subroutine get_ndotB_fourier_at_node
 
-subroutine get_vpar_target_fourier_at_node(inode, in, vpar_cos, vpar_sin)
+function get_vpar_target_for_column(inode, in) result(vpar_target)
   !---------------------------------------------------------------------------
-  ! Get Fourier coefficients of vpar_target at a boundary node for harmonic 'in'
-  ! These coefficients are computed from the NONLINEAR tanh formula applied in
-  ! physical space (per plane), then Fourier transformed.
-  ! This is the correct approach for angle-dependent SBC.
-  ! in=1 corresponds to n=0 (constant), in=2 to n=1*n_period, etc.
+  ! Return vpar_target for JOREK column index 'in' at boundary node.
+  ! Handles column-to-harmonic mapping and cos/sin selection internally.
+  ! JOREK basis: in=1 DC, (2,3) first harmonic cos/-sin, (4,5) second, etc.
   !---------------------------------------------------------------------------
   implicit none
   integer, intent(in) :: inode, in
-  real*8, intent(out) :: vpar_cos, vpar_sin
-  
-  if (.not. ndotB_initialized) then
-    vpar_cos = 0.d0
-    vpar_sin = 0.d0
+  real*8 :: vpar_target
+  integer :: k_fourier
+
+  if (.not. ndotB_initialized .or. inode < 1 .or. inode > n_nodes_stored &
+      .or. in < 2) then
+    vpar_target = 0.d0
     return
   endif
-  
-  if (inode < 1 .or. inode > n_nodes_stored) then
-    vpar_cos = 0.d0
-    vpar_sin = 0.d0
+
+  k_fourier = in / 2 + 1
+  if (k_fourier > n_tor_stored) then
+    vpar_target = 0.d0
     return
   endif
-  
-  if (in < 1 .or. in > n_tor_stored) then
-    vpar_cos = 0.d0
-    vpar_sin = 0.d0
-    return
+
+  if (mod(in, 2) .eq. 0) then
+    ! Even in: cosine component
+    vpar_target = vpar_target_fourier_cos(inode, k_fourier)
+  else
+    ! Odd in: sine component; JOREK basis is -sin
+    vpar_target = -vpar_target_fourier_sin(inode, k_fourier)
   endif
-  
-  vpar_cos = vpar_target_fourier_cos(inode, in)
-  vpar_sin = vpar_target_fourier_sin(inode, in)
-  
-end subroutine get_vpar_target_fourier_at_node
+
+end function get_vpar_target_for_column
 
 end module mod_boundary_ndotB

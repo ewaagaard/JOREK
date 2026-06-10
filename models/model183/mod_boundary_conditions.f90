@@ -36,8 +36,7 @@ contains
                            particle_flux_sbc_enable, heat_flux_sbc_enable, &
                            loop_voltage, tstep, central_density, central_mass, &
                            sbc_use_local_T
-    use mod_boundary_ndotB, only: get_ndotB_at_node, get_ndotB_fourier_at_node, &
-                                  get_vpar_target_fourier_at_node
+    use mod_boundary_ndotB, only: get_ndotB_at_node, get_vpar_target_for_column
     use mod_model_settings, only: var_Psi, var_Phi, var_zj, var_w, var_rho, var_T, &
                                   var_Vpar, var_Ti, var_Te, n_var
     use vacuum, only: is_freebound
@@ -77,11 +76,9 @@ contains
     integer               :: index_node
     
     ! v_par SBC variables
-    integer               :: k_fourier
     real*8                :: vpar_target, vpar_current, delta_vpar
-    real*8                :: ndotB_norm, ndotB_cos, ndotB_sin, T_local
+    real*8                :: ndotB_norm, T_local
     real*8                :: cs, alpha_rad, alpha0_rad, factor_sbc
-    real*8                :: vpar_target_cos, vpar_target_sin
     real*8, parameter     :: pi = 3.14159265358979d0
 
     zbig = 1.d12
@@ -98,6 +95,20 @@ contains
                 do in=a_mat%i_tor_min, a_mat%i_tor_max
 
                    do k=1, n_var
+                      ! Apply loop voltage to drive psi evolution (n=0 mode at boundary)
+                      ! Physics: loop_voltage drives Ohmic current via Faraday's law:
+                      !   d(psi)/dt = -V_loop => psi(t) = psi(0) - V_loop * t
+                      !  Loop voltage: n=0 mode, psi only - matches model600 pattern
+                      if (loop_voltage .ne. 0.d0 .and. k .eq. var_Psi .and. in .eq. 1) then
+                          if ( (.not. is_freebound(in, var_psi)) ) then
+                              index_node = node_list%node(inode)%index(1)
+                              call boundary_conditions_add_RHS(       &
+                                        index_node, var_psi, in, index_min, index_max,         &
+                                        RHS_loc, zbig*loop_voltage*sqrt(MU_ZERO*central_density*central_mass*ATOMIC_MASS_UNIT*1.d20)*tstep, &
+                                        a_mat%i_tor_min, a_mat%i_tor_max)
+                          endif
+                      endif
+
                      if (bc_natural_open .and. k .eq. var_zj) cycle
                      ! Skip Dirichlet BC for density when particle flux SBC is enabled
                      ! (weak-form natural BC handled in mod_boundary_matrix_open.f90)
@@ -157,20 +168,10 @@ contains
                                          rhs_loc, zbig * delta_vpar,                    &
                                          a_mat%i_tor_min, a_mat%i_tor_max)
                                 else
-                                  ! n>0 modes: use precomputed vpar_target Fourier coefficients
-                                  ! JOREK toroidal basis: columns in=2,3 share harmonic k=1, in=4,5 share k=2, etc.
-                                  ! k_fourier = in/2 + 1 maps column index to harmonic index in vpar_target arrays.
-                                  k_fourier = in / 2 + 1
-                                  call get_vpar_target_fourier_at_node(inode, k_fourier, vpar_target_cos, vpar_target_sin)
-                                  
-                                  if (mod(in, 2) .eq. 0) then
-                                    ! Even in: cosine component
-                                    delta_vpar = vpar_target_cos - node_list%node(inode)%values(in,1,var_Vpar)
-                                  else
-                                    ! Odd in: sine component; JOREK basis is -sin, so store -B_k
-                                    delta_vpar = -vpar_target_sin - node_list%node(inode)%values(in,1,var_Vpar)
-                                  endif
-                                  
+                                  ! n>0 modes: mapping from JOREK column index to Fourier harmonic handled in mod_boundary_ndotB
+                                   delta_vpar = get_vpar_target_for_column(inode, in) &
+                                                - node_list%node(inode)%values(in,1,var_Vpar)
+
                                   call boundary_conditions_add_RHS(                     &
                                          index_node, k, in, index_min, index_max,       &
                                          rhs_loc, zbig * delta_vpar,                    &
@@ -208,26 +209,7 @@ contains
 
                          endif
                       endif
-
                    enddo  ! k=1,n_var (variables loop)
-                   
-                   ! Apply loop voltage to drive psi evolution (n=0 mode at boundary)
-                   ! Physics: loop_voltage drives Ohmic current via Faraday's law:
-                   !   d(psi)/dt = -V_loop => psi(t) = psi(0) - V_loop * t
-                   ! Similar functionality exists in model 600
-                   if ( loop_voltage .ne. 0.d0 ) then
-                      if ( in == 1 ) then  ! n=0 mode only
-                         if ( (.not. is_freebound(in, var_psi)) ) then
-                            index_node = node_list%node(inode)%index(1)
-                            call boundary_conditions_add_RHS(       &
-                                      index_node, var_psi, in,      &
-                                      index_min, index_max,         &
-                                      RHS_loc, zbig*loop_voltage*sqrt(MU_ZERO*central_density*central_mass*ATOMIC_MASS_UNIT*1.d20)*tstep, &
-                                      a_mat%i_tor_min, a_mat%i_tor_max)
-                         endif
-                      endif
-                   endif
-
                 enddo  ! in (toroidal modes)
              endif
           enddo
