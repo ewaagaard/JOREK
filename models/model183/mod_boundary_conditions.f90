@@ -31,11 +31,12 @@ contains
 
     use mod_assembly, only : boundary_conditions_add_one_entry, boundary_conditions_add_RHS
 
-    use phys_module, only: F0, bc_natural_open, GAMMA, T_0, &
+    use phys_module, only: F0, bc_natural_open, GAMMA, T_1, &
                            vpar_sbc_enable, vpar_sbc_alpha0, vpar_sbc_strength, &
                            particle_flux_sbc_enable, heat_flux_sbc_enable, &
                            loop_voltage, tstep, central_density, central_mass, &
                            sbc_use_local_T
+    use corr_neg, only: corr_neg_temp
     use mod_boundary_ndotB, only: get_ndotB_at_node, get_vpar_target_for_column
     use mod_model_settings, only: var_Psi, var_Phi, var_zj, var_w, var_rho, var_T, &
                                   var_Vpar, var_Ti, var_Te, n_var
@@ -142,15 +143,11 @@ contains
                             if (k .eq. var_Vpar) then
                               ! Compute angle-dependent target if SBC enabled
                               if (vpar_sbc_enable) then
-                                ! Temperature for sound speed: local edge T or core T_0
+                                ! Temperature for sound speed: local edge T or norm. SOL T
                                 if (sbc_use_local_T) then
-                                  T_local = node_list%node(inode)%values(1,1,var_T)
-                                  if (T_local < 1.d-8) then
-                                    T_local = T_0  ! Fallback for numerical zeros
-                                    write(*,*) 'WARNING: T_local too low at node', inode, ', falling back to T_0=', T_0
-                                  endif
+                                  T_local = corr_neg_temp(node_list%node(inode)%values(1,1,var_T))
                                 else
-                                  T_local = T_0  ! Use core temperature (default)
+                                  T_local = corr_neg_temp(T_1)  ! Use normalized SOL temperature
                                 endif
                                 cs = sqrt(GAMMA * T_local)
                                 alpha0_rad = vpar_sbc_alpha0 * pi / 180.d0
