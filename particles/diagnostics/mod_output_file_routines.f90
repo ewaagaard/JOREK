@@ -142,7 +142,7 @@ subroutine conservation_block(sim,group_num)
 #else
     !$omp parallel do default(none)   &
     !$omp shared(sim, mass)     &
-    !$omp private(j, gamma_m)         &
+    !$omp private(gamma_m, j)         &
 #endif
     !$omp reduction(+:particles_remaining, particles_elm_lt0, momentum_remaining, energy_remaining,superparticles_remaining)
       do j=1,size(particles,1)
