@@ -113,8 +113,13 @@ subroutine conservation_block(sim,group_num)
 
   select type (particles => sim%groups(group_num)%particles)
   type is (particle_kinetic_leapfrog)
-    !$omp parallel do default(shared) & ! IFX2025: associate names forbidden in shared(); default(shared)+private is correct
-    !$omp private(j)                  &
+#ifdef __GFORTRAN__
+    !$omp parallel do default(shared) & ! workaround for Error: �__vtab_mod_pcg32_rng_Pcg32_rng� not specified in enclosing �parallel�
+#else
+    !$omp parallel do default(none)  &
+    !$omp shared(sim, mass)    &
+    !$omp private(j)                 &
+#endif
     !$omp reduction(+:particles_remaining, particles_elm_lt0, momentum_remaining, energy_remaining,superparticles_remaining)
       do j=1,size(particles,1)
 
@@ -132,8 +137,13 @@ subroutine conservation_block(sim,group_num)
     !omp end parallel do
 
   type is (particle_kinetic_relativistic)
-    !$omp parallel do default(shared) & ! IFX2025: associate names forbidden in shared(); default(shared)+private is correct
-    !$omp private(gamma_m,j)          &
+#ifdef __GFORTRAN__
+    !$omp parallel do default(shared) & ! workaround for Error: �__vtab_mod_pcg32_rng_Pcg32_rng� not specified in enclosing �parallel�
+#else
+    !$omp parallel do default(none)   &
+    !$omp shared(sim, mass)     &
+    !$omp private(j, gamma_m)         &
+#endif
     !$omp reduction(+:particles_remaining, particles_elm_lt0, momentum_remaining, energy_remaining,superparticles_remaining)
       do j=1,size(particles,1)
 
