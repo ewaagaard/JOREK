@@ -143,7 +143,6 @@ subroutine initialize_puff_valve(sim, valve_num, new)
   type(particle_puffing), intent(inout)          :: new
   type(type_valve)                               :: valve
   integer                                        :: ifail
-  integer                                        :: checked_elms_dummy ! for find_RZP
 
   valve = valves(valve_num)
 
