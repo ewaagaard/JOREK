@@ -143,6 +143,7 @@ subroutine initialize_puff_valve(sim, valve_num, new)
   type(particle_puffing), intent(inout)          :: new
   type(type_valve)                               :: valve
   integer                                        :: ifail
+  integer                                        :: checked_elms_dummy
 
   valve = valves(valve_num)
 
@@ -156,7 +157,7 @@ subroutine initialize_puff_valve(sim, valve_num, new)
     !> (add a case here when implementing new valve types)
     case ('circ')
       call find_RZP(sim%fields%node_list, sim%fields%element_list, valve%R_valve_loc, valve%Z_valve_loc, valve%phi, new%val_R, new%val_Z, &
-      new%val_i_elm, new%val_s, new%val_t ,ifail)
+      new%val_i_elm, new%val_s, new%val_t ,ifail, checked_elms_dummy)
 
     case ('poly')
       call find_RZ(sim%fields%node_list, sim%fields%element_list, sum(valve%poly_R(1:2))/2.d0, sum(valve%poly_Z(1:2))/2.d0, new%val_R, new%val_Z, &
@@ -429,7 +430,7 @@ subroutine do_particle_puffing(this,sim, ev)
         endif
     
         call find_RZ_nearby(sim%fields%node_list, sim%fields%element_list, R, Z, s, t, i_elm, &
-        R_new, Z_new, s_new, t_new, i_elm_new, ifail)
+        R_new, Z_new, s_new, t_new, i_elm_new, ifail, phi=pa(i_p)%x(3))
         if (ifail .ge. 0) exit
       end do
       R     = R_new
