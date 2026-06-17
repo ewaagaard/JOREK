@@ -73,13 +73,13 @@ enddo !n_mpi
 !if not allocated, allocate rec_variables of size (n_elements)
 if(.not. allocated(rec_rate_local)) then
   allocate(rec_rate_local(local_rec_elements(my_id+1), n_plane  )) !< local_rec_elements bcause it's local
-	allocate(rec_v_R(local_rec_elements(my_id+1), n_plane    ))
-	allocate(rec_v_Z(local_rec_elements(my_id+1), n_plane    ))
-	allocate(rec_v_phi(local_rec_elements(my_id+1), n_plane  ))
-	
-	allocate(volume_check(local_rec_elements(my_id+1), n_plane))
-	allocate(energy_neutrals(local_rec_elements(my_id+1), n_plane))
-	allocate(energy_radiation(local_rec_elements(my_id+1), n_plane))  
+  allocate(rec_v_R(local_rec_elements(my_id+1), n_plane    ))
+  allocate(rec_v_Z(local_rec_elements(my_id+1), n_plane    ))
+  allocate(rec_v_phi(local_rec_elements(my_id+1), n_plane  ))
+
+  allocate(volume_check(local_rec_elements(my_id+1), n_plane))
+  allocate(energy_neutrals(local_rec_elements(my_id+1), n_plane))
+  allocate(energy_radiation(local_rec_elements(my_id+1), n_plane))
 endif
 
 !> can now be done local?
@@ -235,6 +235,16 @@ enddo
 
 enddo !ife
 !$omp end parallel do
+
+! --- Volume integrals above were over wedge from 0 to (2 * PI) / n_period
+! --- We need to account for all n_period wedges
+rec_rate_local   = n_period * rec_rate_local
+rec_v_R          = n_period * rec_v_R
+rec_v_Z          = n_period * rec_v_Z
+rec_v_phi        = n_period * rec_v_phi
+volume_check     = n_period * volume_check
+energy_neutrals  = n_period * energy_neutrals
+energy_radiation = n_period * energy_radiation
 
 !return
 end subroutine

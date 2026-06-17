@@ -313,7 +313,7 @@ subroutine neutral_self_collision(this, sim, dt, nodes, elements)
             call interp_RZ(sim%fields%node_list,sim%fields%element_list,i_elm,(real(is)+0.5d0)/real(ns),(real(it)+0.5d0)/real(nt),R,R_s,R_t,Z,Z_s,Z_t)
             ls = sqrt(R_s**2 + Z_s**2)/real(ns)
             lt = sqrt(R_t**2 + Z_t**2)/real(nt)
-            V_c = ls*lt*(2.d0*PI*R/real(n_period*n_phi))
+            V_c = ls*lt*(2.d0*PI*R/real(n_phi))
 
             global_diag(i_V) = global_diag(i_V) + V_c !< sanity check on the total volume
             

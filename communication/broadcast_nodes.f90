@@ -26,7 +26,17 @@ call MPI_BCAST(node_list%n_nodes,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
 call MPI_BCAST(node_list%n_dof,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
 
 #ifdef STELLARATOR_MODEL
-bufsize = node_list%n_nodes * ((n_coord_tor*n_degrees*(n_dim+2*3+1) + 2*n_tor*n_degrees*n_variables + n_tor*n_degrees + 2 + 2*n_degrees)*IDBL_EXT + (n_degrees + 1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
+#ifndef USE_DOMM
+! Model180 or Model183 with USE_EXT_FIELD: include j_field, b_field, b_vac_field
+! For model183: r_tor_eq(n_degrees) + b_field(n_coord_tor*n_degrees*(n_dim+1)) + b_vac_field(n_coord_tor*n_degrees*(n_dim+1)) + j_source(n_tor*n_degrees)
+! Buffer formula: n_coord_tor*n_degrees*(n_dim + 2*(n_dim+1)) + ... accounts for x(n_dim) + b_vac_field + ONE of (b_field or chi_correction)
+! For model183 with USE_EXT_FIELD we now also pack b_field, so add +1*(n_dim+1) = 3*(n_dim+1) total
+bufsize = node_list%n_nodes * ((n_coord_tor*n_degrees*(n_dim+3*(n_dim+1)+1) + 2*n_tor*n_degrees*n_variables + n_tor*n_degrees + 2 + 2*n_degrees)*IDBL_EXT + (n_degrees + 1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
+#else
+! USE_DOMM: model180 packs j_field+b_field+b_vac_field = 3*(n_dim+1), model183 only b_vac_field = 1*(n_dim+1)
+! Use 3*(n_dim+1) to cover worst case (model180). Slight overallocation for model183 is harmless.
+bufsize = node_list%n_nodes * ((n_coord_tor*n_degrees*(n_dim+3*(n_dim+1)) + 2*n_tor*n_degrees*n_variables + n_tor*n_degrees + 2 + 2*n_degrees)*IDBL_EXT + (n_degrees + 1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
+#endif
 #elif fullmhd
 bufsize = node_list%n_nodes * ((n_coord_tor*n_degrees*n_dim + 2*n_tor*n_degrees*n_variables+2*n_degrees+2)*IDBL_EXT + (n_degrees +1+3+1+1)*INT_EXT + (2)*ILOG_EXT)
 #elif altcs                          
@@ -58,7 +68,11 @@ if (my_id .eq. 0) then
     call MPI_PACK(anode%b_field        ,n_coord_tor*n_degrees*(n_dim+1),MPI_DOUBLE_PRECISION,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
 #endif
 #ifndef USE_DOMM
+#ifdef USE_EXT_FIELD
+    call MPI_PACK(anode%b_vac_field    ,n_coord_tor*n_degrees*(n_dim+1),MPI_DOUBLE_PRECISION,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+#else
     call MPI_PACK(anode%chi_correction ,n_coord_tor*n_degrees          ,MPI_DOUBLE_PRECISION,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+#endif
 #endif
     call MPI_PACK(anode%j_source       ,n_tor*n_degrees,MPI_DOUBLE_PRECISION,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
 #elif fullmhd
@@ -78,6 +92,12 @@ if (my_id .eq. 0) then
   
    
   enddo
+
+  if (position > bufsize) then
+    write(*,*) 'FATAL broadcast_nodes: MPI pack buffer overflow: position=', position, ', bufsize=', bufsize
+    write(*,*) 'Bufsize formula is too small - update broadcast_nodes.f90'
+    stop
+  end if
 
 endif
 
@@ -101,7 +121,11 @@ if (my_id .ne. 0) then
     call MPI_UNPACK(buffer,bufsize,position,anode%b_field        ,n_coord_tor*n_degrees*(n_dim+1)  ,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
 #endif
 #ifndef USE_DOMM
+#ifdef USE_EXT_FIELD
+    call MPI_UNPACK(buffer,bufsize,position,anode%b_vac_field    ,n_coord_tor*n_degrees*(n_dim+1)  ,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
+#else
     call MPI_UNPACK(buffer,bufsize,position,anode%chi_correction ,n_coord_tor*n_degrees            ,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
+#endif
 #endif
     call MPI_UNPACK(buffer,bufsize,position,anode%j_source       ,n_tor*n_degrees                  ,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,ierr)
 #elif fullmhd

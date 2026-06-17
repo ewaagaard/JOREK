@@ -152,7 +152,7 @@ program test_NNC
       p(i)%i_elm  = i_elm      
       p(i)%st     = [s,t]
       call interp_RZ(sim%fields%node_list,sim%fields%element_list,i_elm,s,t,R,Z)
-      p(i)%x      = [R,Z,RN(4)*TWOPI/n_period]
+      p(i)%x      = [R,Z,RN(4)*TWOPI]
       
       RN(5:8) = boxmueller_transform(RN(5:8))
       p(i)%v      = 0.d0 + sqrt(T_av*K_BOLTZ/(sim%groups(1)%mass * ATOMIC_MASS_UNIT))*RN(5:7)

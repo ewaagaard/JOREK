@@ -35,7 +35,7 @@ module mod_particle_recomb
     real*8        :: total_Erec_neutral,total_Erec_neutral_all, total_Erec_rad,total_Erec_rad_all
     real*8, dimension(n_plane) :: total_rec_nplane, total_volume_nplane, total_rec_nplane_all, total_volume_nplane_all
     integer       :: n_free, i, j, k,ielm,ife, i_rng, ierr, mp
-    real*8        :: s, t,R, Z, phi_plane, delta_phi, st_ran(3)
+    real*8        :: s, t,R, Z, phi_plane, delta_phi, phi_ran(2)
   
     !debug rec
     real*8                :: sanity_rec_local,total_sanity_rec
@@ -130,7 +130,7 @@ module mod_particle_recomb
 #endif
       !$omp schedule(runtime)    &
       !$omp private(ife,ielm,k,i,element,s,t,R, Z , &
-      !$omp st_ran, i_rng,phi_plane) &
+      !$omp phi_ran, i_rng,phi_plane) &
       !$omp reduction(+:sanity_rec_local)
         do ife = 1, size(rec_rate_local,1) ! loop over all local elements
   
@@ -159,7 +159,7 @@ module mod_particle_recomb
                 
               sanity_rec_local = sanity_rec_local + particles(i_free(k))%weight
                 
-              call rng(i_rng)%next(st_ran)
+              call rng(i_rng)%next(phi_ran)
               !< sample random st combination
               particles(i_free(k))%st(1) = 0.5d0
               particles(i_free(k))%st(2) = 0.5d0
@@ -170,7 +170,7 @@ module mod_particle_recomb
               !> uses i_elm and s,t to give us R,Z
               call interp_RZ(node_list,element_list,ielm,s,t,R,Z)
               particles(i_free(k))%x(1:2)  = [R, Z]
-              particles(i_free(k))%x(3)    = phi_plane + delta_phi*(st_ran(3)-0.5d0)
+              particles(i_free(k))%x(3)    = phi_plane  + int(phi_ran(1)*n_period) * 2.d0*PI/real(n_period,8) + delta_phi*(phi_ran(2)-0.5d0)  !  randomly add particle to one of n_period toroidal wedges.
               
               particles(i_free(k))%v(1)  = rec_v_R(ife,mp)   / (particles(i_free(k))%weight * CENTRAL_MASS * ATOMIC_MASS_UNIT )/ sqrt_mu0_over_rho0 !m/s
               particles(i_free(k))%v(2)  = rec_v_Z(ife,mp)   / (particles(i_free(k))%weight * CENTRAL_MASS * ATOMIC_MASS_UNIT )/ sqrt_mu0_over_rho0

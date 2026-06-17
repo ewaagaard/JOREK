@@ -1040,7 +1040,7 @@ subroutine fluid2part_action(this, sim)
   integer :: q, Z
   real*8 :: E !< [eV] particle energy  (eV because of eckstein coeffs).
   real*8 :: n_e, T_e, T_i, Te_eV, Ti_eV
-  real*8,  allocatable :: xyz_sampled(:,:), st_sampled(:,:), rng_sample(:,:) !< (3,n_supers_loc), (2,n_supers_loc), (3,n_supers_loc)
+  real*8,  allocatable :: xyz_sampled(:,:), st_sampled(:,:), rng_sample(:,:) !< (3,n_supers_loc), (2,n_supers_loc), (6,n_supers_loc)
   integer, allocatable :: i_elm_sampled(:) !< (n_supers_loc)
   logical :: do_main !> whether to do the main calculation (we can't just return early because that breaks the MPI_REDUCE at the end of the subroutine)
 
@@ -1082,7 +1082,7 @@ subroutine fluid2part_action(this, sim)
   end if
   
   if(do_main) then  
-    allocate(rng_sample(3,size(i_free)))
+    allocate(rng_sample(6,size(i_free)))
     allocate(xyz_sampled(3,size(i_free)))
     allocate(st_sampled(2,size(i_free)))
     allocate(i_elm_sampled(size(i_free)))
@@ -1110,7 +1110,7 @@ subroutine fluid2part_action(this, sim)
     q = min(q, 4) ! limit to 4 for divertor conditions
     Z = this%fluid_Z
 
-    call sample_edge_elements(this%fluid_yield_integral, this%res, 1, n_supers_loc, rng_sample(1:2,:), xyz_sampled, st_sampled, i_elm_sampled)
+    call sample_edge_elements(this%fluid_yield_integral, this%res, 1, n_supers_loc, rng_sample(1:3,:), xyz_sampled, st_sampled, i_elm_sampled)
 
     if (sim%my_id .eq. 0) then
       write(*,"(A,i8,A,A,A,A,A,i2,3A,i2,A,es16.6,A,es16.6)") "fluid2wall will create ", n_supers," ", element_symbols(sim%groups(this%target_group)%Z),&
@@ -1166,9 +1166,9 @@ subroutine fluid2part_action(this, sim)
       case("wall recomb")
         ! determine E
 #ifdef WITH_TiTe
-        call sample_fluid_particle_energy(Te_eV, rng_sample(1:3,j), Z, E, Ti_eV=Ti_eV)
+        call sample_fluid_particle_energy(Te_eV, rng_sample(4:6,j), Z, E, Ti_eV=Ti_eV)
 #else
-        call sample_fluid_particle_energy(Te_eV, rng_sample(1:3,j), Z, E)
+        call sample_fluid_particle_energy(Te_eV, rng_sample(4:6,j), Z, E)
 #endif
 
         ! determine outcoming particle
@@ -2017,24 +2017,28 @@ subroutine particle_projection_diagnostic(this, sim, particle, E, sputtering_yie
   !associate (sc => this%wall_projection%patch(i_patch)%scalars) ! associate is nice to make more readable but cannot be used in OMP before version 4.5 (so not in OneAPI's OMP)
   do k=1,4
     ! particle flux
+    ! (weight/n_period since we are only looking at the flux of one 1/n_period wedge)
     !$omp atomic
     this%wall_projection%patch(i_patch)%scalars(i_edge_nodes(k),1) = &
-    this%wall_projection%patch(i_patch)%scalars(i_edge_nodes(k),1) + particle%weight * area(k)/sum(area)**2
+    this%wall_projection%patch(i_patch)%scalars(i_edge_nodes(k),1) + (particle%weight/n_period) * area(k)/sum(area)**2
     
     ! particle heat flux on edge elements (including sheath potential)
+    ! (weight/n_period since we are only looking at the flux of one 1/n_period wedge)
     !$omp atomic
     this%wall_projection%patch(i_patch)%scalars(i_edge_nodes(k),2) = &
-    this%wall_projection%patch(i_patch)%scalars(i_edge_nodes(k),2) + particle%weight * E * EL_CHG * area(k)/sum(area)**2
+    this%wall_projection%patch(i_patch)%scalars(i_edge_nodes(k),2) + (particle%weight/n_period) * E * EL_CHG * area(k)/sum(area)**2
     
     ! particle flux from prompt redeposition (i.e. from particles younger than 2 pi / omega_c)
+    ! (weight/n_period since we are only looking at the flux of one 1/n_period wedge)
     !$omp atomic
     this%wall_projection%patch(i_patch)%scalars(i_edge_nodes(k),3) = &
-    this%wall_projection%patch(i_patch)%scalars(i_edge_nodes(k),3) + particle%weight * is_prompt_loss * area(k)/sum(area)**2
+    this%wall_projection%patch(i_patch)%scalars(i_edge_nodes(k),3) + (particle%weight/n_period) * is_prompt_loss * area(k)/sum(area)**2
     
     ! sputtering yield
+    ! (weight/n_period since we are only looking at the flux of one 1/n_period wedge)
     !$omp atomic
     this%wall_projection%patch(i_patch)%scalars(i_edge_nodes(k),4) = &
-    this%wall_projection%patch(i_patch)%scalars(i_edge_nodes(k),4) + particle%weight * sputtering_yield * area(k)/sum(area)**2
+    this%wall_projection%patch(i_patch)%scalars(i_edge_nodes(k),4) + (particle%weight/n_period) * sputtering_yield * area(k)/sum(area)**2
     
   end do
   !end associate

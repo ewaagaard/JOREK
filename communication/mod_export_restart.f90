@@ -339,6 +339,7 @@ subroutine export_hdf5_restart(node_list,element_list,filename,aux_node_list)
   real(RKIND), allocatable :: t_r_tor_eq(:,:)              !              n_degrees
   real(RKIND), allocatable :: t_j_field(:,:,:,:)           ! n_coord_tor, n_degrees, n_dim
   real(RKIND), allocatable :: t_b_field(:,:,:,:)           ! n_coord_tor, n_degrees, n_dim
+  real(RKIND), allocatable :: t_b_vac_field(:,:,:,:)       ! n_coord_tor, n_degrees, n_dim
   real(RKIND), allocatable :: t_chi_correction(:,:,:)      ! n_coord_tor, n_degrees
   real(RKIND), allocatable :: t_j_source(:,:,:)            !       n_tor, n_degrees
 
@@ -422,6 +423,8 @@ subroutine export_hdf5_restart(node_list,element_list,filename,aux_node_list)
        "node_list%j_field",CAT_UNKNOWN)                                           
   call tr_allocate(t_b_field,1,node_list%n_nodes,1,n_coord_tor,1,n_degrees,1,n_dim+1, &
        "node_list%b_field",CAT_UNKNOWN)
+  call tr_allocate(t_b_vac_field,1,node_list%n_nodes,1,n_coord_tor,1,n_degrees,1,n_dim+1, &
+       "node_list%b_vac_field",CAT_UNKNOWN)
   call tr_allocate(t_chi_correction,1,node_list%n_nodes,1,n_coord_tor,1,n_degrees, &
        "node_list%chi_correction",CAT_UNKNOWN)
   call tr_allocate(t_j_source,1,node_list%n_nodes,1,n_tor,1,n_degrees, &
@@ -497,10 +500,14 @@ subroutine export_hdf5_restart(node_list,element_list,filename,aux_node_list)
 #if JOREK_MODEL == 180
      t_pressure(i,:)           = node_list%node(i)%pressure
      t_j_field(i,:,:,:)        = node_list%node(i)%j_field
-     t_b_field(i,:,:,:)        = node_list%node(i)%b_field
+     t_b_field(i,:,:,:)        = node_list%node(i)%b_field     
 #endif
 #ifndef USE_DOMM
+#ifdef USE_EXT_FIELD
+     t_b_vac_field(i,:,:,:)    = node_list%node(i)%b_vac_field
+#else
      t_chi_correction(i,:,:)   = node_list%node(i)%chi_correction
+#endif
 #endif
      t_j_source(i,:,:)         = node_list%node(i)%j_source
 #endif
@@ -629,7 +636,7 @@ subroutine export_hdf5_restart(node_list,element_list,filename,aux_node_list)
   call HDF5_array2D_saving(file_id,t_r_tor_eq, &
        node_list%n_nodes,n_degrees,'r_tor_eq'//char(0))
 #if JOREK_MODEL == 180
-  ! Save GVEC fields
+  ! Save GVEC fields (pressure and j_field only needed in model180)
   call HDF5_array2D_saving(file_id,t_pressure, &
        node_list%n_nodes,n_degrees,'pressure'//char(0))
   call HDF5_array4D_saving(file_id,t_j_field, &
@@ -646,8 +653,13 @@ subroutine export_hdf5_restart(node_list,element_list,filename,aux_node_list)
 #endif
 
 #ifndef USE_DOMM
+#ifdef USE_EXT_FIELD
+  call HDF5_array4D_saving(file_id,t_b_vac_field, &
+       node_list%n_nodes,n_coord_tor,n_degrees,n_dim+1,'b_vac_field'//char(0))
+#else
   call HDF5_array3D_saving(file_id,t_chi_correction, &
        node_list%n_nodes,n_coord_tor,n_degrees,'chi_correction'//char(0))
+#endif
 #endif
   call HDF5_array3D_saving(file_id,t_j_source, &
        node_list%n_nodes,n_tor,n_degrees,'j_source'//char(0))
@@ -982,6 +994,7 @@ subroutine export_hdf5_restart(node_list,element_list,filename,aux_node_list)
   call tr_deallocate(t_r_tor_eq,"r_tor_eq",CAT_UNKNOWN)
   call tr_deallocate(t_j_field,"j_field",CAT_UNKNOWN)
   call tr_deallocate(t_b_field,"b_field",CAT_UNKNOWN)
+  call tr_deallocate(t_b_vac_field,"b_vac_field",CAT_UNKNOWN)
   call tr_deallocate(t_chi_correction,"chi_correction",CAT_UNKNOWN)
   call tr_deallocate(t_j_source,"j_source",CAT_UNKNOWN)
 #elif fullmhd
