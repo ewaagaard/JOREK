@@ -485,18 +485,30 @@ subroutine do_jorek_timestep(this, sim, ev)
 
     if (index_now > index_start+1) then
       if (n_tor .gt. 1) then
-        Growth_mag  = 0.5d0*log(abs(energies(n_tor,1,index_now)/energies(n_tor,1,index_now-1)))/ tstep
-        Growth_kin  = 0.5d0*log(abs(energies(n_tor,2,index_now)/energies(n_tor,2,index_now-1)))/ tstep
+        if (energies(n_tor,1,index_now) .ne. 0.d0 .and. &
+            energies(n_tor,1,index_now-1) .ne. 0.d0) then
+          Growth_mag  = 0.5d0*log(abs(energies(n_tor,1,index_now)/energies(n_tor,1,index_now-1)))/ tstep
+          Growth_kin  = 0.5d0*log(abs(energies(n_tor,2,index_now)/energies(n_tor,2,index_now-1)))/ tstep
+        else
+          Growth_mag  = 0.d0
+          Growth_kin  = 0.d0
+        end if
       else
-        Growth_mag  = 0.d0
-        Growth_kin  = 0.d0
-      endif
+          Growth_mag  = 0.d0
+          Growth_kin  = 0.d0
+      end if
       if (linear_run) then
         Growth_mag0 = 0.d0
         Growth_kin0 = 0.d0
       else
-        Growth_mag0 = 0.5d0*log(abs(energies(1,1,index_now)/energies(1,1,index_now-1)))/ tstep
-        Growth_kin0 = 0.5d0*log(abs(energies(1,2,index_now)/energies(1,2,index_now-1)))/ tstep
+        if (energies(1,1,index_now) .ne. 0.d0 .and. &
+            energies(1,1,index_now-1) .ne. 0.d0) then
+          Growth_mag0 = 0.5d0*log(abs(energies(1,1,index_now)/energies(1,1,index_now-1)))/ tstep
+          Growth_kin0 = 0.5d0*log(abs(energies(1,2,index_now)/energies(1,2,index_now-1)))/ tstep
+        else
+          Growth_mag0 = 0.d0
+          Growth_kin0 = 0.d0
+        end if
       endif
       write(*,131) 'Growth_mag,_kin =', Growth_mag0, Growth_mag, Growth_kin0, Growth_kin
     endif
