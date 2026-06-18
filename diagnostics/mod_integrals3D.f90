@@ -283,6 +283,14 @@ n_mpi = max(n_mpi,1)
 n_mpi = 1
 #endif
 
+#if STELLARATOR_MODEL
+if (n_coord_tor .le. 1) then
+  if (my_id .eq. 0) write(*,*) &
+    "INFO: int3d_new skipped: n_coord_tor=1 incompatible with stellarator integral path"
+  return
+end if
+#endif
+
 if (my_id .eq. 0) then
   write(*,*) '***************************************'
   write(*,*) '* Integrals  (3D)                     *'
