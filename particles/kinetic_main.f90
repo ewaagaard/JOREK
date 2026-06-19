@@ -44,7 +44,9 @@ use mod_initialise_particles
 use equil_info
 use mod_output_file_routines, only: write_to_outputfile
 use mod_impurity,        only: init_imp_adas
+#if STELLARATOR_MODEL
 use mod_equations, only: init_eq_struct
+#endif
 use mod_element_rtree, only: populate_element_rtree
 
 use phys_module, only: index_now
@@ -240,7 +242,7 @@ allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_e
 jorek_feedback%rhs = 0.d0
 
 ! Define init_eq_struct for semianalytical model 183
-#if defined(SEMIANALYTICAL)
+#if STELLARATOR_MODEL
 call init_eq_struct()
 #endif
 

@@ -100,6 +100,10 @@ module phys_module
   logical :: Mach1_fix_B          !< Full-MHD: Use the initial magnetic field for Mach1 BCs on targets, ie. without AR and AZ variations
   logical :: export_polar_boundary !< Option to export boundary.txt even in the case of a polar boundary.
 
+  ! Test switches for stellarator kinetic
+  logical :: fix_kinetic_Te = .false.
+  real*8  :: fixed_Te_eV    = 43.d0
+
   ! --- RESISTIVITY SWITCHES FOR AR AND AZ EQUATIONS
   ! --- 1.
   ! --- Default set-up is eta_ARAZ_on = .true.
