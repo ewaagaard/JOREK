@@ -137,7 +137,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 filter_perp_n0, filter_hyper_n0, filter_par_n0,     &
                 apply_dirichlet_proj,                               &
                 n_part_groups, part_group_configs,                  &
-                part_groups_in_use, valves, fluid_configs
+                part_groups_in_use, valves, fluid_configs,          &
+                fix_kinetic_Te, fixed_Te_eV
 
 
 namelist /dommcoef/  R_domm, dcoef

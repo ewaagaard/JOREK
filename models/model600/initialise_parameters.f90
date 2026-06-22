@@ -225,7 +225,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 use_manual_random_seed, manual_seed,                &
                 use_fixed_rng_value, fixed_rng_value,               &
                 loop_voltage, export_aux_node_list,                 &
-                use_zkperp_times_density, zkperp_density_floor
+                use_zkperp_times_density, zkperp_density_floor,     &
+                fix_kinetic_Te, fixed_Te_eV
 
 
 if (my_id .eq. 0) then
