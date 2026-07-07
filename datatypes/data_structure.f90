@@ -231,6 +231,8 @@ contains
 
     allocate(node%values(n_tor, n_degrees, n_values))
     allocate(node%deltas(n_tor, n_degrees, n_values))
+    node%values = 0.d0  ! zero-initialise: uninitialized aux_nodes cause FP overflow
+    node%deltas = 0.d0  ! in element_matrix_fft when restarting from model180 H5 for stellarator model
 
   end subroutine init_node
 
