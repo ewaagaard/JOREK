@@ -123,10 +123,6 @@ contains
                           (node_list%node(inode)%boundary .eq. 2) .or. &
                           (node_list%node(inode)%boundary .eq. 3)) then
 
-                         if ((k .eq. var_Psi) .or. (k .eq. var_Phi) .or. (k .eq. var_zj) .or. &
-                              (k .eq. var_w) .or. (k .eq. var_rho) .or. (k .eq. var_T) .or. (k .eq. var_Vpar) .or. &
-                              (k .eq. var_Ti) .or. (k .eq. var_Te)) then
- 
                           if ( (.not. is_freebound(in,k)) ) then ! apply fixed boundary conditions where necessary
 
                             index_node = node_list%node(inode)%index(1)
@@ -179,6 +175,7 @@ contains
                       if ((node_list%node(inode)%boundary .eq. 2) .or. (node_list%node(inode)%boundary .eq. 3)) then
 
                          if ( (.not. is_freebound(in,k)) ) then ! apply fixed boundary conditions where necessary
+                         ! free-boundary not yet implemented for 183
 
                             ! --- constrain second tangential derivative DOF at type 2/3 nodes (X-point corner geometry)
                             index_node = node_list%node(inode)%index(3)
