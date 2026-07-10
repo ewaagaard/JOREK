@@ -164,7 +164,7 @@ end subroutine accumulate_ndotB_at_node_plane
 
 subroutine finalize_boundary_ndotB()
   use mpi
-  use data_structure
+  use nodes_elements
   use mod_parameters, only: n_period
   use corr_neg, only: corr_neg_temp
   use phys_module, only: vpar_sbc_alpha0, vpar_sbc_strength, vpar_sbc_smooth_sign, &
@@ -175,7 +175,7 @@ subroutine finalize_boundary_ndotB()
   real*8, parameter :: pi = 3.14159265358979d0
   integer :: i, mp, in, n_with_data, ierr, my_id
   real*8 :: ndotB_sum, ndotB_avg, ndotB_min, ndotB_max
-  real*8 :: phi, ndotB_val, ndotB_scaled, cos_n, sin_n
+  real*8 :: phi, ndotB_val, cos_n, sin_n
   real*8 :: alpha0_rad, alpha_rad, factor_sbc, vpar_target_val, cs, T_local
   real*8, allocatable :: ndotB_global(:), count_global(:)
   real*8, allocatable :: ndotB_plane_global(:,:), count_plane_global(:,:)
@@ -248,21 +248,22 @@ subroutine finalize_boundary_ndotB()
   vpar_target_fourier_cos = 0.d0
   vpar_target_fourier_sin = 0.d0
   
-  ! Use node-local temperature if needed
-  if (sbc_use_local_T .and. var_T .gt. 0) then
-    ! Note: 2T mode (var_T=0) always falls back to T_1.
-    ! For physical 2T SBC, this should use Ti+Te at the boundary.
-    ! This requires separate implementation when 2T SBC is needed.
-    T_local = corr_neg_temp(node_list%node(i)%values(1,1,var_T))
-  else
-    T_local = corr_neg_temp(T_1)  ! Use normalized SOL temperature
-  endif
-
-  ! Compute SBC parameters once
-  alpha0_rad = vpar_sbc_alpha0 * pi / 180.d0
-  cs = sqrt(GAMMA * T_local)  ! Use reference sound speed
-  
   do i = 1, n_nodes_stored
+
+    ! Use node-local temperature if needed
+    if (sbc_use_local_T .and. var_T .gt. 0) then
+      ! Note: 2T mode (var_T=0) always falls back to T_1.
+      ! For physical 2T SBC, this should use Ti+Te at the boundary.
+      ! This requires separate implementation when 2T SBC is needed.
+      T_local = corr_neg_temp(node_list%node(i)%values(1,1,var_T))
+    else
+      T_local = corr_neg_temp(T_1)  ! Use normalized SOL temperature
+    endif
+
+    ! Compute SBC parameters once
+    alpha0_rad = vpar_sbc_alpha0 * pi / 180.d0
+    cs = sqrt(GAMMA * T_local)
+
     do in = 1, n_tor_stored
       do mp = 1, n_plane_stored
         ! Mode in=2 has n_period oscillations over 2pi (one per field period) -- lowest stellarator mode.
@@ -271,14 +272,14 @@ subroutine finalize_boundary_ndotB()
         
         ! Compute vpar_target in physical space
         if (vpar_sbc_smooth_sign) then
-          ! Smooth sign formulation: vpar = cs * tanh(ndotB_scaled / sin(alpha0))
+          ! Smooth sign formulation: vpar = cs * tanh(ndotB_val / sin(alpha0))
           ! This avoids sign() discontinuity that causes Gibbs phenomenon
           ! ndotB = sin(alpha), so sin(alpha0) normalizes to make transition at alpha0
           vpar_target_val = cs * tanh(ndotB_val / sin(alpha0_rad)) * vpar_sbc_strength
         else
           ! Original formulation: vpar = sign(ndotB) * cs * tanh(|alpha|/alpha0)
           ! Has sign() discontinuity causing Gibbs overshoot at ndotB sign changes
-          alpha_rad = asin(min(1.d0, max(-1.d0, abs(ndotB_scaled))))
+          alpha_rad = asin(min(1.d0, max(-1.d0, abs(ndotB_val))))
           factor_sbc = tanh(alpha_rad / alpha0_rad)
           vpar_target_val = sign(1.d0, ndotB_val) * cs * factor_sbc * vpar_sbc_strength
         endif
