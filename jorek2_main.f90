@@ -92,6 +92,7 @@ program JOREK2
                                             stdout=>output_unit, &
                                             stderr=>error_unit
   use mod_newton_solver, only: solve_newton
+  use mod_model_settings, only: var_Vpar
   
   implicit none
 
@@ -176,6 +177,7 @@ program JOREK2
   integer :: getpid
 
   logical :: input_treat_axis
+  integer :: inode_test
   
   type(type_MHD_SIM)          :: mhd_sim
   type(type_SP_MATRIX)        :: a_mat
@@ -768,8 +770,28 @@ write(*,*) "n elements:", element_list%n_elements
          end do
        end if
 #endif
+      if (my_id.eq.0) then
+        do inode_test = 1, node_list%n_nodes
+          if (node_list%node(inode_test)%boundary .eq. 2) then
+            write(*,'(A,I6,A,E14.6)') "PRE-UPDATE  inode=", inode_test, &
+              " values(1,2,var_Vpar)=", node_list%node(inode_test)%values(1,2,var_Vpar)
+            exit   ! just grab the first type-2 node found
+          endif
+        enddo
+      endif
 
       call update_values(mhd_sim%element_list, mhd_sim%node_list, deltas)         ! add solution to node values
+
+      if (my_id.eq.0) then
+        do inode_test = 1, node_list%n_nodes
+          if (node_list%node(inode_test)%boundary .eq. 2) then
+            write(*,'(A,I6,A,E14.6)') "POST-UPDATE inode=", inode_test, &
+              " values(1,2,var_Vpar)=", node_list%node(inode_test)%values(1,2,var_Vpar)
+            exit
+          endif
+        enddo
+      endif
+
       call update_deltas(mhd_sim%node_list, deltas)
 
       t_now = t_now + tstep

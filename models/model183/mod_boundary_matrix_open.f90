@@ -280,7 +280,7 @@ do ms=1,n_gauss
     ! Print statements to ensure consistency
     if (.not. printed) then
       write(*, "(A)") "Mod_boundary_matrix_open:"
-      write(*,'(A,I6,A,E12.4,A,E12.4,A,E12.4,A,E12.4,A,E12.4)') &
+      write(*,'(A,I6,A,I6,A,E12.4,A,E12.4,A,E12.4,A,E12.4)') &
         " vertex=", element%vertex(vertex(1)), " mp=", mp, " ndotB=", ndotB, &
         " Btot=", Btot, " bdotn_normalized=", bdotn_normalized, "vpar_sbc_angle_scale=", vpar_sbc_angle_scale
       printed = .true.
