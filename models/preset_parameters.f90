@@ -99,7 +99,6 @@ subroutine preset_parameters
   bc_natural_flux    = .false.! boundary conditions for flux surface boundaries (2 and 3)
   bc_natural_open    = .false. ! use sheath (Bohm) boundary conditions
 
-  gamma              = 1.6666666666666667d0  ! ratio of specific heats (5/3) for adiabatic flow
   gamma_sheath       = 4.5d0  ! sheath transmission factor (single fluid) in the JOREK definition
   gamma_stangeby     = -1.d99 ! sheath transmission factor (single fluid) given by Stangeby
   gamma_sheath_e     = 3.00d0 ! sheath transmission factor (electron fluid) in the JOREK definition
