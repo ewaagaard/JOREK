@@ -29,6 +29,7 @@ integer,                intent(in)  :: i_tor_min, i_tor_max, ielm
 integer :: vertex(2), direction(2), xcase2
 real*8  :: psi_axis, R_axis, Z_axis, psi_bnd, R_xpoint(2), Z_xpoint(2)
 logical :: xpoint2
+logical, save :: printed = .false.
 
 integer :: vertex2(2), direction_perp(2), i, i2, i3, j, j2, j3, k, l, ms, mp, im, in, index_ij, index_kl, ij3, kl1, kl3, n_tor_local
 integer :: ij5, kl5  ! For particle flux SBC
@@ -277,10 +278,13 @@ do ms=1,n_gauss
     bdotn_normalized = ndotB / Btot * vpar_sbc_angle_scale  ! sin(alpha) scaled
     
     ! Print statements to ensure consistency
-    write(*, "(A)") "Mod_boundary_matrix_open:"
-    write(*,'(A,I6,A,E12.4,A,E12.4,A,E12.4,A,E12.4, A,E12.4)') &
-      " vertex=", element%vertex(vertex(1)), " mp=", mp, " ndotB=", ndotB, &
-      " Btot=", Btot, " bdotn_normalized=", bdotn_normalized, "vpar_sbc_angle_scale=", vpar_sbc_angle_scale
+    if (.not. printed) then
+      write(*, "(A)") "Mod_boundary_matrix_open:"
+      write(*,'(A,I6,A,E12.4,A,E12.4,A,E12.4,A,E12.4,A,E12.4)') &
+        " vertex=", element%vertex(vertex(1)), " mp=", mp, " ndotB=", ndotB, &
+        " Btot=", Btot, " bdotn_normalized=", bdotn_normalized, "vpar_sbc_angle_scale=", vpar_sbc_angle_scale
+      printed = .true.
+    endif
 
     ! Clamp to physical range [-1, 1] to avoid numerical issues
     bdotn_normalized = max(-1.d0, min(1.d0, bdotn_normalized))
