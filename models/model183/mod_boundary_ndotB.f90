@@ -168,7 +168,7 @@ subroutine finalize_boundary_ndotB()
   use mod_parameters, only: n_period
   use corr_neg, only: corr_neg_temp
   use phys_module, only: vpar_sbc_alpha0, vpar_sbc_strength, vpar_sbc_smooth_sign, &
-                         vpar_sbc_angle_scale, T_0, T_1, GAMMA, ndotB_evolving, loop_voltage, &
+                         vpar_sbc_angle_scale, T_1, GAMMA, ndotB_evolving, loop_voltage, &
                          sbc_use_local_T
   use mod_model_settings, only: var_T
   implicit none
@@ -179,6 +179,7 @@ subroutine finalize_boundary_ndotB()
   real*8 :: alpha0_rad, alpha_rad, factor_sbc, vpar_target_val, cs, T_local
   real*8, allocatable :: ndotB_global(:), count_global(:)
   real*8, allocatable :: ndotB_plane_global(:,:), count_plane_global(:,:)
+  logical             :: diag_printed = .false.
   
   if (.not. ndotB_initialized) return
   if (ndotB_finalized) return
@@ -248,6 +249,8 @@ subroutine finalize_boundary_ndotB()
   vpar_target_fourier_cos = 0.d0
   vpar_target_fourier_sin = 0.d0
   
+  alpha0_rad = vpar_sbc_alpha0 * pi / 180.d0
+
   do i = 1, n_nodes_stored
 
     ! Use node-local temperature if needed
@@ -260,8 +263,7 @@ subroutine finalize_boundary_ndotB()
       T_local = corr_neg_temp(T_1)  ! Use normalized SOL temperature
     endif
 
-    ! Compute SBC parameters once
-    alpha0_rad = vpar_sbc_alpha0 * pi / 180.d0
+    ! Compute sound speed
     cs = sqrt(GAMMA * T_local)
 
     do in = 1, n_tor_stored
@@ -313,6 +315,16 @@ subroutine finalize_boundary_ndotB()
         vpar_target_fourier_sin(i, in) = vpar_target_fourier_sin(i, in) * 2.d0
       endif
     enddo
+
+    if (my_id==0 .and. node_list%node(i)%boundary .ne. 0 .and. .not. diag_printed) then
+      write(*, "(A)") "Mod_boundary_ndotB:"
+      write(*,'(A,I6,A,E12.4,A,E12.4,A,E12.4,A,E12.4)') &
+        " i=", i, " T_local=", T_local, " cs=", cs, &
+        " vpar_target_fourier_cos=", vpar_target_fourier_cos(i,1), &
+        " vpar_target_fourier_sin=", vpar_target_fourier_sin(i,1)
+      diag_printed = .true.
+    endif
+
   enddo
   
   if (n_with_data > 0) then

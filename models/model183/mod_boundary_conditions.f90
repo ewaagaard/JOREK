@@ -66,6 +66,7 @@ contains
     real*8,                             intent(in)    :: psi_xpoint(2)
     real*8,                             intent(inout) :: rhs_loc(*)
     type(type_SP_MATRIX)                              :: a_mat
+    logical :: printed_dc = .false., printed_harmonic = .false.
 
     ! Internal parameters
     real*8                :: zbig
@@ -143,6 +144,16 @@ contains
                                 ! calculate delta vpar and apply, just like in model 600
                                 delta_vpar = get_vpar_target_for_column(inode, in) &
                                               - node_list%node(inode)%values(in,1,var_Vpar)
+
+                                if ((in.eq.1 .and. .not.printed_dc) .or. (in.gt.1 .and. .not.printed_harmonic)) then
+                                  write(*, "(A)") "Mod_boundary_conditions:"
+                                  write(*,'(A,I6,A,I6,A,E12.4,A,E12.4,A,E12.4)') &
+                                    " inode=", inode, " in=", in, &
+                                    " get_vpar_target_for_column=", get_vpar_target_for_column(inode,in), &
+                                    " node_list_values=", node_list%node(inode)%values(in,1,var_Vpar), &
+                                    " delta_vpar=", delta_vpar
+                                  if (in.eq.1) then; printed_dc=.true.; else; printed_harmonic=.true.; endif
+                                end if
 
                                 call boundary_conditions_add_RHS(                     &
                                         index_node, k, in, index_min, index_max,       &

@@ -276,6 +276,12 @@ do ms=1,n_gauss
     ! Default = 1.0 (no scaling)
     bdotn_normalized = ndotB / Btot * vpar_sbc_angle_scale  ! sin(alpha) scaled
     
+    ! Print statements to ensure consistency
+    write(*, "(A)") "Mod_boundary_matrix_open:"
+    write(*,'(A,I6,A,E12.4,A,E12.4,A,E12.4,A,E12.4, A,E12.4)') &
+      " vertex=", element%vertex(vertex(1)), " mp=", mp, " ndotB=", ndotB, &
+      " Btot=", Btot, " bdotn_normalized=", bdotn_normalized, "vpar_sbc_angle_scale=", vpar_sbc_angle_scale
+
     ! Clamp to physical range [-1, 1] to avoid numerical issues
     bdotn_normalized = max(-1.d0, min(1.d0, bdotn_normalized))
     
