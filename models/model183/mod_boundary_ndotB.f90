@@ -164,15 +164,19 @@ end subroutine accumulate_ndotB_at_node_plane
 
 subroutine finalize_boundary_ndotB()
   use mpi
+  use data_structure
   use mod_parameters, only: n_period
+  use corr_neg, only: corr_neg_temp
   use phys_module, only: vpar_sbc_alpha0, vpar_sbc_strength, vpar_sbc_smooth_sign, &
-                         vpar_sbc_angle_scale, T_0, GAMMA, ndotB_evolving, loop_voltage
+                         vpar_sbc_angle_scale, T_0, T_1, GAMMA, ndotB_evolving, loop_voltage, &
+                         sbc_use_local_T
+  use mod_model_settings, only: var_T
   implicit none
   real*8, parameter :: pi = 3.14159265358979d0
   integer :: i, mp, in, n_with_data, ierr, my_id
   real*8 :: ndotB_sum, ndotB_avg, ndotB_min, ndotB_max
   real*8 :: phi, ndotB_val, ndotB_scaled, cos_n, sin_n
-  real*8 :: alpha0_rad, alpha_rad, factor_sbc, vpar_target_val, cs
+  real*8 :: alpha0_rad, alpha_rad, factor_sbc, vpar_target_val, cs, T_local
   real*8, allocatable :: ndotB_global(:), count_global(:)
   real*8, allocatable :: ndotB_plane_global(:,:), count_plane_global(:,:)
   
@@ -244,9 +248,19 @@ subroutine finalize_boundary_ndotB()
   vpar_target_fourier_cos = 0.d0
   vpar_target_fourier_sin = 0.d0
   
+  ! Use node-local temperature if needed
+  if (sbc_use_local_T .and. var_T .gt. 0) then
+    ! Note: 2T mode (var_T=0) always falls back to T_1.
+    ! For physical 2T SBC, this should use Ti+Te at the boundary.
+    ! This requires separate implementation when 2T SBC is needed.
+    T_local = corr_neg_temp(node_list%node(i)%values(1,1,var_T))
+  else
+    T_local = corr_neg_temp(T_1)  ! Use normalized SOL temperature
+  endif
+
   ! Compute SBC parameters once
   alpha0_rad = vpar_sbc_alpha0 * pi / 180.d0
-  cs = sqrt(GAMMA * T_0)  ! Use reference sound speed
+  cs = sqrt(GAMMA * T_local)  ! Use reference sound speed
   
   do i = 1, n_nodes_stored
     do in = 1, n_tor_stored
@@ -390,9 +404,13 @@ function get_vpar_target_for_column(inode, in) result(vpar_target)
   real*8 :: vpar_target
   integer :: k_fourier
 
-  if (.not. ndotB_initialized .or. inode < 1 .or. inode > n_nodes_stored &
-      .or. in < 2) then
+  if (.not. ndotB_initialized .or. inode < 1 .or. inode > n_nodes_stored) then
     vpar_target = 0.d0
+    return
+  endif
+
+  if (in .eq. 1) then
+    vpar_target = vpar_target_fourier_cos(inode, 1)   ! DC; sin(0)=0 identically
     return
   endif
 
