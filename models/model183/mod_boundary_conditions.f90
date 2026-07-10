@@ -143,45 +143,14 @@ contains
                             if (k .eq. var_Vpar) then
                               ! Compute angle-dependent target if SBC enabled
                               if (vpar_sbc_enable) then
-                                ! Temperature for sound speed: local edge T or norm. SOL T
-                                if (sbc_use_local_T .and. var_T .gt. 0) then
-                                  T_local = corr_neg_temp(node_list%node(inode)%values(1,1,var_T))
-                                else
-                                  ! Note: 2T mode (var_T=0) always falls back to T_1.
-                                  ! For physical 2T SBC, this should use Ti+Te at the boundary.
-                                  ! This requires separate implementation when 2T SBC is needed.
-                                  T_local = corr_neg_temp(T_1)  ! Use normalized SOL temperature
-                                endif
-                                cs = sqrt(GAMMA * T_local)
-                                alpha0_rad = vpar_sbc_alpha0 * pi / 180.d0
-                                
-                                if (in .eq. 1) then
-                                  ! n=0 mode: use toroidally-averaged ndotB
-                                  ndotB_norm = get_ndotB_at_node(inode)
-                                  alpha_rad = asin(min(1.d0, max(-1.d0, abs(ndotB_norm))))
-                                  factor_sbc = tanh(alpha_rad / alpha0_rad)
-                                  vpar_target = sign(1.d0, ndotB_norm) * cs * factor_sbc * vpar_sbc_strength
-                                  
-                                  ! Get current vpar value at this node (n=0 mode)
-                                  vpar_current = node_list%node(inode)%values(1,1,var_Vpar)
-                                  delta_vpar = vpar_target - vpar_current
-                                  
-                                  call boundary_conditions_add_RHS(                     &
-                                         index_node, k, in, index_min, index_max,       &
-                                         rhs_loc, zbig * delta_vpar,                    &
-                                         a_mat%i_tor_min, a_mat%i_tor_max)
-                                else
-                                  ! n>0 modes: mapping from JOREK column index to Fourier harmonic handled in mod_boundary_ndotB
-                                   delta_vpar = get_vpar_target_for_column(inode, in) &
-                                                - node_list%node(inode)%values(in,1,var_Vpar)
+                                ! calculate delta vpar and apply, just like in model 600
+                                delta_vpar = get_vpar_target_for_column(inode, in) &
+                                              - node_list%node(inode)%values(in,1,var_Vpar)
 
-                                  call boundary_conditions_add_RHS(                     &
-                                         index_node, k, in, index_min, index_max,       &
-                                         rhs_loc, zbig * delta_vpar,                    &
-                                         a_mat%i_tor_min, a_mat%i_tor_max)
-                                endif
-                              else
-                                ! SBC disabled: zero BC for all modes (no RHS addition needed)
+                                call boundary_conditions_add_RHS(                     &
+                                        index_node, k, in, index_min, index_max,       &
+                                        rhs_loc, zbig * delta_vpar,                    &
+                                        a_mat%i_tor_min, a_mat%i_tor_max)
                               endif
                             endif
 
