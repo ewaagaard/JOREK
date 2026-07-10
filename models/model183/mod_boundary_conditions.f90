@@ -43,6 +43,7 @@ contains
     use mod_locate_irn_jcn
     use mod_integer_types
     use data_structure
+    use phys_module, only: max_bnd_types   ! add to existing use-list
 
     implicit none
 
@@ -67,6 +68,8 @@ contains
     real*8,                             intent(inout) :: rhs_loc(*)
     type(type_SP_MATRIX)                              :: a_mat
     logical :: printed_dc = .false., printed_harmonic = .false.
+    logical :: printed_bnd_histogram  = .false.
+    integer :: bt, cnt
 
     ! Internal parameters
     real*8                :: zbig
@@ -88,6 +91,14 @@ contains
           do iv=1, n_vertex_max
 
              inode = element_list%element(ielm)%vertex(iv)
+
+             if (my_id.eq.0 .and. .not. printed_bnd_histogram) then
+              do bt = 0, max_bnd_types
+                cnt = count(node_list%node(1:node_list%n_nodes)%boundary .eq. bt)
+                if (cnt > 0) write(*,'(A,I3,A,I8)') "boundary type ", bt, " : count = ", cnt
+              enddo
+              printed_bnd_histogram = .true.
+            endif
 
              if (node_list%node(inode)%boundary .ne. 0) then
 
@@ -168,7 +179,6 @@ contains
                             ! Acceptable for current test cases; revisit for production runs with steep angle gradients.
                             
                           endif
-                        endif
                       endif
 
                       !------------------------------------ wall aligned with fluxsurface (in case of x-point grid)
