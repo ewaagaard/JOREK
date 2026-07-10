@@ -136,8 +136,8 @@ contains
 
                           if ( (.not. is_freebound(in,k)) ) then ! apply fixed boundary conditions where necessary
 
-                            index_node = node_list%node(inode)%index(1)
-                            
+                            ! Value DOF: constrain for ALL boundary types (1,2,3) — v_par target lives here
+                            index_node = node_list%node(inode)%index(1)        
                             call boundary_conditions_add_one_entry(                 &
                                    index_node, k, in, index_node, k, in,            &
                                    zbig, index_min, index_max, a_mat)
@@ -169,14 +169,13 @@ contains
                               endif
                             endif
 
-                            index_node = node_list%node(inode)%index(2)
-
-                            call boundary_conditions_add_one_entry(                 &
-                                   index_node, k, in, index_node, k, in,            &
-                                   zbig, index_min, index_max, a_mat)
-                            
-                            ! Derivative BC: zero for constant v_par at boundary (no RHS addition)
-                            ! Acceptable for current test cases; revisit for production runs with steep angle gradients.
+                            ! index(2) derivative for types 1 and 3 only, not type 2
+                            if ((node_list%node(inode)%boundary .eq. 1) .or. (node_list%node(inode)%boundary .eq. 3)) then
+                              index_node = node_list%node(inode)%index(2)
+                              call boundary_conditions_add_one_entry(                 &
+                                    index_node, k, in, index_node, k, in,            &
+                                    zbig, index_min, index_max, a_mat)
+                            endif
                             
                           endif
                       endif
