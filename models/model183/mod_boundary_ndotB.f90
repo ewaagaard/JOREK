@@ -274,15 +274,13 @@ subroutine finalize_boundary_ndotB()
           ! Smooth sign formulation: vpar = cs * tanh(ndotB_scaled / sin(alpha0))
           ! This avoids sign() discontinuity that causes Gibbs phenomenon
           ! ndotB = sin(alpha), so sin(alpha0) normalizes to make transition at alpha0
-          ndotB_scaled = ndotB_val * vpar_sbc_angle_scale
-          vpar_target_val = cs * tanh(ndotB_scaled / sin(alpha0_rad)) * vpar_sbc_strength
+          vpar_target_val = cs * tanh(ndotB_val / sin(alpha0_rad)) * vpar_sbc_strength
         else
           ! Original formulation: vpar = sign(ndotB) * cs * tanh(|alpha|/alpha0)
           ! Has sign() discontinuity causing Gibbs overshoot at ndotB sign changes
-          ndotB_scaled = ndotB_val * vpar_sbc_angle_scale
           alpha_rad = asin(min(1.d0, max(-1.d0, abs(ndotB_scaled))))
           factor_sbc = tanh(alpha_rad / alpha0_rad)
-          vpar_target_val = sign(1.d0, ndotB_scaled) * cs * factor_sbc * vpar_sbc_strength
+          vpar_target_val = sign(1.d0, ndotB_val) * cs * factor_sbc * vpar_sbc_strength
         endif
         
         ! Fourier coefficient for mode (in-1) [0-indexed internally]
