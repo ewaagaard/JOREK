@@ -1,3 +1,7 @@
+*mod_settings.f90
+*mod_model_settings.f90
+reg_tests
+
 *.bck
 *.o
 *.mod
