@@ -258,9 +258,14 @@ subroutine finalize_boundary_ndotB()
       ! Note: 2T mode (var_T=0) always falls back to T_1.
       ! For physical 2T SBC, this should use Ti+Te at the boundary.
       ! This requires separate implementation when 2T SBC is needed.
+      !
+      ! WARNING: unlike the T_1 branch below, T_local here IS a solved matrix unknown
+      ! (node%values(1,1,var_T)). The v_par target built from it is therefore a function
+      ! of a live DOF, but no Jacobian entry A(Vpar,T) exists anywhere for this dependence
+      ! TO BE ADDED FOR NEXT PR
       T_local = corr_neg_temp(node_list%node(i)%values(1,1,var_T))
     else
-      T_local = corr_neg_temp(T_1)  ! Use normalized SOL temperature
+      T_local = corr_neg_temp(T_1)  ! Use normalized SOL temperature, fixed constant so no a_mat terms needed 
     endif
 
     ! Compute sound speed
@@ -323,6 +328,12 @@ subroutine finalize_boundary_ndotB()
         " vpar_target_fourier_cos=", vpar_target_fourier_cos(i,1), &
         " vpar_target_fourier_sin=", vpar_target_fourier_sin(i,1)
       diag_printed = .true.
+      if (vpar_sbc_enable .and. sbc_use_local_T) then
+        write(*,'(A)') "WARNING: sbc_use_local_T=.true. with vpar_sbc_enable=.true.:"
+        write(*,'(A)') "  v_par target depends on solved boundary T, but no A(Vpar,T)"
+        write(*,'(A)') "  Jacobian entry is assembled. Target is lagged (RHS-only), not"
+        write(*,'(A)') "  fully implicit. Not an issue for the validated sbc_use_local_T=.false."
+      endif
     endif
 
   enddo

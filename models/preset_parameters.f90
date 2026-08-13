@@ -91,6 +91,11 @@ subroutine preset_parameters
 
   ! SBC local temperature interpolation
   sbc_use_local_T = .false.  ! Use local edge T for sound speed. If .false., use T_1 (edge default).
+                             ! NOTE: with .false. (current default/validated setting), the v_par SBC
+                             ! target has zero dependence on any solved variable (T_1 is a fixed
+                             ! namelist constant) - no Jacobian coupling is needed or missing.
+                             ! With .true., T_local becomes a solved DOF and this is NOT yet true
+                             ! (see warning in mod_boundary_ndotB.f90), still to be implemented
 
   freeboundary_equil = .false. ! use free or fixed boundary equilibrium
   freeboundary       = .false. ! use free or fixed boundary?

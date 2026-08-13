@@ -137,6 +137,9 @@ contains
                               ! Compute angle-dependent target if SBC enabled
                               if (vpar_sbc_enable) then
                                 ! calculate delta vpar and apply, just like in model 600
+                                ! NOTE: target treated as frozen (RHS-only, yet no A(Vpar,T) coupling) as model 600
+                                ! exact when sbc_use_local_T=.false. (T_1 is a constant, not a DOF). 
+                                ! approximation if sbc_use_local_T=.true. -- see warning in mod_boundary_ndotB.f90.
                                 delta_vpar = get_vpar_target_for_column(inode, in) &
                                               - node_list%node(inode)%values(in,1,var_Vpar)
 
