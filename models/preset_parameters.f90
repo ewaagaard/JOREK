@@ -90,7 +90,7 @@ subroutine preset_parameters
   ndotB_evolving = .false.  ! Freeze n.B after first computation (default). Set to .true. for evolving fields.
 
   ! SBC local temperature interpolation
-  sbc_use_local_T = .false.  ! Use local edge T for sound speed. If .false., use T_0 (core default).
+  sbc_use_local_T = .false.  ! Use local edge T for sound speed. If .false., use T_1 (edge default).
 
   freeboundary_equil = .false. ! use free or fixed boundary equilibrium
   freeboundary       = .false. ! use free or fixed boundary?
