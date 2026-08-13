@@ -1,3 +1,13 @@
+
+# Test cases 
+testcases/fixedbound_equil_gridtowall/jorek_ffprime
+testcases/fixedbound_equil_gridtowall/wall.txt
+testcases/w7a_ballooning_183/dc_W7A_unst_10kPa
+testcases/w7a_ballooning_2T_183/dc_W7A_unst_10kPa
+unit_tests/adas_files/info.txt
+*mod_model_settings.f90
+*mod_settings.f90
+
 *.bck
 *.o
 *.mod
