@@ -252,7 +252,7 @@ module phys_module
   logical :: ndotB_evolving  !< If true, recompute n.B each timestep. If false, freeze after first computation.
   
   ! SBC local temperature interpolation
-  logical :: sbc_use_local_T  !< If true, use interpolated local T at boundary for sound speed. If false, use T_0.
+  logical :: sbc_use_local_T  !< If true, use interpolated local T at boundary for sound speed. If false, use T_1.
 
   !> Points used as blocks to extend grid into complex wall structures, see https://www.jorek.eu/wiki/doku.php?id=wallgrid_tutorial
   real*8  :: surface_cross_tol                                                  !< Tolerance when looking for crossing of polar lines and surfaces, needs to be > 1.0

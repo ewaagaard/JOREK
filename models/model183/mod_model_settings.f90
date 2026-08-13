@@ -5,7 +5,7 @@ module mod_model_settings
 
   logical, parameter :: with_rho        = .true.
   logical, parameter :: with_vpar       = .false.
-  logical, parameter :: with_TiTe       = .false. 
+  logical, parameter :: with_TiTe       = .true. 
 
 ! ##################################################################################################
 ! ####  @USERS: This file should not be modified ###################################################
