@@ -8,8 +8,7 @@
   nstep_particles    = 100000 ! 1000000 
   nsubstep_particles = 1
   tstep_particles    = 0.1044656280E-06  
-  n_particles        = 1 
-
+  
   filter_perp  = 0d0
   filter_hyper = 1d-10
   filter_par   = 1.d0 

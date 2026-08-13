@@ -6,7 +6,7 @@ use mpi
 use mod_atomic_elements
 use mod_particle_io
 use mod_event
-use mod_particle_loop
+! use mod_particle_loop
 use nodes_elements
 use mod_random_seed
 use mod_math_operators, only: cross_product
@@ -16,7 +16,7 @@ use mod_fields !,  only : check_consistency_Qin, check_consistency_RK4
 use mod_interp,  only: mode_moivre, interp_RZ, interp_0
 use phys_module, only: F0, tstep, nstep, nout, restart
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY, xcase, xpoint
-use phys_module, only: n_particles, nstep_particles, nsubstep_particles, tstep_particles
+use phys_module, only: nstep_particles, nsubstep_particles, tstep_particles
 use phys_module, only: xtime, mode
 use constants,   only: MU_ZERO, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 use mod_export_restart
@@ -298,7 +298,7 @@ do i=1, nstep_particles
   select type (p_gc => sim%groups(2)%particles)
   type is (particle_gc_vpar)	
 
-    do j=1, n_particles 
+    do j=1, n_particles_local
       if (p_gc(j)%i_elm .le. 0) then
         write(*,*) 'ERROR: GC particle left domain at step ',i
         write(*,*) 'Position: ',p_gc(1)%x, "r = ", sqrt((p_gc(1)%x(1) - ES%R_axis)**2 + (p_gc(1)%x(2) - ES%Z_axis)**2)
@@ -329,7 +329,7 @@ do i=1, nstep_particles
 !  select type (p_gc2 => sim%groups(4)%particles)
 !  type is (particle_gc_vpar)	
 
-!    do j=1, n_particles 
+!    do j=1, n_particles_local
 !      call push_gc_rk2(sim%fields, p_gc2(j), sim%groups(2)%mass, timesteps, n_steps, 0)
 !    enddo
 
@@ -355,7 +355,7 @@ do i=1, nstep_particles
   select type (p_Qin =>sim%groups(3)%particles)
   type is (particle_gc_Qin)	
 
-    do j=1, n_particles 
+    do j=1, n_particles_local 
       if (p_Qin(j)%i_elm .le. 0) then 
         write(*,*) 'ERROR: Qin particle left domain at step ',i
         write(*,*) 'Position: ',p_Qin(1)%x, "r = ", sqrt((p_Qin(1)%x(1) - ES%R_axis)**2 + (p_Qin(1)%x(2) - ES%Z_axis)**2)

@@ -202,6 +202,10 @@ ifeq (.true., $(shell ./util/config.sh -p with_neutrals))
   DEFINES  := $(DEFINES) -DWITH_Neutrals
 endif
 
+ifeq (.true., $(shell ./util/config.sh -p with_rho))
+  DEFINES  := $(DEFINES) -DWITH_Rho
+endif
+
 ifeq (.true., $(shell ./util/config.sh -p with_impurities))
   DEFINES  := $(DEFINES) -DWITH_Impurities
 endif
@@ -345,6 +349,12 @@ endif
 
 ifeq (1, $(USE_TASKLOOP))
   DEFINES  := $(DEFINES) -DUSE_TASKLOOP
+endif
+
+ifeq (1, $(USE_STDLIB))
+  LIBS     := $(LIBS) $(LIB_STDLIB)
+  INCLUDES := $(INCLUDES) $(INC_STDLIB)
+  DEFINES  := $(DEFINES) -DUSE_STDLIB
 endif
 
 # Do not check to make these files to speed up and clean -d output

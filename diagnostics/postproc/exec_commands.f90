@@ -3193,7 +3193,7 @@ module exec_commands
     
     integer   :: MPI_COMM_N, MPI_GROUP_MASTER, MPI_GROUP_WORLD, MPI_COMM_MASTER, MPI_COMM_TRANS
     integer   :: my_id, my_id_n, my_id_master
-    integer   :: i_rank(n_tor), n_cpu, n_cpu_n, n_cpu_master, m_cpu, n_masters, n_cpu_trans, my_id_trans
+    integer   :: i_rank(n_tor), n_mpi, n_mpi_n, n_mpi_master, m_mpi, n_masters, n_mpi_trans, my_id_trans
     integer*4 :: rank, comm_size 
     integer   :: nnz
     integer*8 :: check_data
@@ -3227,7 +3227,7 @@ module exec_commands
 
     ! --- Determine number of MPI procs
     call MPI_COMM_SIZE(MPI_COMM_WORLD, comm_size, ierr)
-    n_cpu = comm_size
+    n_mpi = comm_size
   
     ! --- Determine ID of each MPI proc
     call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)
@@ -3336,7 +3336,7 @@ module exec_commands
     call update_time_evol_params()
   
     if ( index_start <= 1 ) then
-      tstep_prev = tstep
+      tstep_prev = tstep_rst
     else
       tstep_prev = xtime(index_start) - xtime(index_start-1)
     end if

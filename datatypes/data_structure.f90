@@ -191,8 +191,8 @@ end type type_node
     integer, dimension(:,:), pointer             :: mode_families_modes => Null() !< Toroidal modes which belong to each mode family
     
     integer, dimension(:), pointer               :: rank_range => Null()          !< range of MPI ranks which belong to mode families
-    integer                                      :: my_id, n_cpu, comm    
-    integer                                      :: my_id_n, n_cpu_n, MPI_COMM_N
+    integer                                      :: my_id, n_mpi, comm    
+    integer                                      :: my_id_n, n_mpi_n, MPI_COMM_N
     integer                                      :: my_id_master, n_masters, MPI_COMM_MASTER, MPI_COMM_TRANS, MPI_GROUP_WORLD, MPI_GROUP_MASTER
 ! the following variables are used in PC distribution (they are set only once to save computation time)
     integer, dimension(:,:), pointer             :: send_counts => Null()         !< number of entries sent to each other MPI ranks (PC distribution)

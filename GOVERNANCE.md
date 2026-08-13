@@ -12,7 +12,7 @@ JOREK remains a central community code for 3D non-linear MHD and hybrid fluid-ki
 
 ## 2. License & Contributions
 - **License**: LGPLv3.0-or-later.
-- **Contributions**: Every pull request requires Developer Certificate of Origin (DCO 1.1): `Signed-off-by: Name <email>`. Confirms rights and LGPL compatibility.[web:19]
+- **Contributions**: Every pull request requires Developer Certificate of Origin (DCO 1.1): `Signed-off-by: Name <email>`. Confirms rights and LGPL compatibility.
 - Maintainers review (or coordinate review) and merge pull requests.
 
 ## 3. Publication Rules (Mandatory)

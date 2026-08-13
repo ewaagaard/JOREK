@@ -136,22 +136,18 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 mode_families_modes, n_mode_families,               &
                 weights_per_family, autodistribute_ranks,           &
                 ranks_per_family,                                   &
-                n_particles, tstep_particles, nstep_particles,      &
+                tstep_particles, nstep_particles,                   &
                 nsubstep_particles, restart_particles,              &
                 filter_perp,    filter_hyper,    filter_par,        &
                 filter_perp_n0, filter_hyper_n0, filter_par_n0,     &
-                use_kn_cx, use_kn_sputtering, use_kn_ionisation,    &
-                use_ncs, use_pcs, use_ccs, use_pcs_full,            &
-                restart_particles,                                  &
-                use_kn_recombination, use_kn_puffing,use_kn_line_radiation,  &
-                puff_rate, r_valve, R_valve_loc, Z_valve,           &
-                R_valve_loc2, Z_valve2, n_puff,                     &
+                apply_dirichlet_proj, part_group_configs,           &
+                part_groups_in_use, valves, fluid_configs,          &
                 cte_current_FB_fact, Z_xpoint_limit,                &
                 CARIDDI_mode, use_newton, maxNewton, gamma_Newton,  &
                 alpha_Newton, vacuum_min, strumpack_matching,       &
                 xpoint_search_tries, export_aux_node_list,          &
                 use_manual_random_seed, manual_seed,                &
-                use_fixed_rng_value, fixed_rng_value,               &            
+                use_fixed_rng_value, fixed_rng_value,               &
                 bgf_rpolar, bgf_tht, min_sheath_angle
 
 

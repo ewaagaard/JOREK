@@ -55,7 +55,8 @@ module phys_module
   real*8  :: imp_reflection       !< impurity reflection coefficient on open fieldlines
   real*8  :: loop_voltage         !< Apply a loop voltage at the boundary of the computational domain (in V; works only for fixed boundary)
   logical :: old_deuterium_atomic !< use old fit to calculate atomic coefficients for D (ionization, recombination, radiation), otherwise a better fit is used
-  logical :: deuterium_adas       !< use OPEN ADAS to calculate ionization, recombination and radiation coeffients for deuterium   
+  logical :: deuterium_adas       !< use OPEN ADAS to calculate ionization, recombination and radiation coefficients for deuterium in
+                                  !< the fluid model, only recombination coefficients in the kinetic model
   logical :: deuterium_adas_1e20  !< use OPEN ADAS with fixed density=1e20 to calculate ionization, recombination and radiation coeffients for deuterium
   logical :: mach_one_bnd_integral!< use a boundary integral (boundary_matrix_open) to implement Mach=one boundary condition
   logical :: vpar_smoothing       !< apply a smoothing function to smooth jumps in Vpar at B.n=0
@@ -66,6 +67,7 @@ module phys_module
   integer :: nout                 !< Output a restart file every nout timesteps
   integer :: nout_projection      !< Output particle projection every nout_projection timesteps (only for diagnostics)
                                   !< Note that the 'to_h5' or 'to_vtk' flag should be .true. in the 'new_projection' function for this parameter to be in play
+  integer :: nout_particles       !< Output particle restart file every nout_particles timesteps
   integer :: xcase                !< 1->LowerXpoint. 2->UpperXpoint. 3->doubleNull
   logical :: forceSDN             !< Force a symmetric double null, within the accuracy of SDN_threshold
   real*8  :: SDN_threshold        !< threshold, in absolute psi, for a symmetric-double-null grid construction
@@ -123,6 +125,9 @@ module phys_module
   integer :: gmres_max_iter       !< Maximum number of GMRES iterations
   logical :: keep_n0_const        !< Perform a linear run where the equilibrium quantities (i_tor=1) do not change with time?
   logical :: linear_run           !< Same as keep_n0_const, to be replaced soon by true linear run where modes are independent
+  logical :: use_zkperp_times_density   !< If set to .true., the ZK_perp used in the equations is given by the ZK_perp input form the namelist times the normalized particle density; otherwise ZK_perp from the input namelist is used directly
+                                        !< Effectively, user sets chi_perp perp heat diffusivity instead of ZK_perp perp heat conductivitiy
+  real*8  :: zkperp_density_floor !< Minumum density to multiply zkperp by if use_zkperp_times_density is used, to avoid division by 0
   logical :: export_for_nemec     !< Export equilibrium information for the NEMEC code?
   logical :: export_aux_node_list !< Include the aux_node_list for particle projections in the restart files
   logical :: use_murge            !< (Deprecated, Cannot be used any more)
@@ -369,6 +374,7 @@ module phys_module
   real*8  :: tstep_n(10)       		!< Alternative to tstep: Up to ten values may be given
   integer :: nstep             		!< Number of timesteps to perform
   integer :: nstep_n(10)       		!< Alternative to nstep: Up to ten values may be given
+  real*8  :: tstep_rst            !< tstep from restart file
   real*8  :: t_start           		!< Time value at the start of the code run (zero or from restart file)
   real*8  :: t_now             		!< Current time value in the simulation
   integer :: index_start       		!< Time step index at the beginning of the code run (zero or from restart file)
@@ -980,41 +986,196 @@ module phys_module
   real*8  :: zjz_0, zjz_1,  zj_coef(10)
   real*8  :: D_neutral
 
-  !> @name Particles-related input parameters
-  logical :: use_particles       ! Flag if simulation contains particles
-  integer :: n_aux_var = n_var   ! number of variables in aux_node_list (= n_var is temporary)
-  integer :: n_diag_var = n_var  ! number of variables in diag_node_list (= n_var is temporary)
-  logical :: restart_particles
-  logical :: use_ncs          !< use neutral particles
-  logical :: use_ccs          !< use current coupling scheme for fast particles
-  logical :: use_pcs          !< use pressure coupling scheme for fast particles
-  logical :: use_pcs_full     !< use full tensor pressure coupling scheme for fast particles
-  logical :: use_kn_cx        !< switch on sputtering         (in particle module)
-  logical :: use_marker       !< This flag determines whether to use marker particles to treat impurity (Placeholder)
-  logical :: use_kn_sputtering   !< switch on charge-exchange    (in particle module)
-  logical :: use_kn_ionisation   !< switch on ionisation         (in particle module)
-  logical :: use_kn_recombination !< switch on recombination         (in particle module)
-  logical :: use_kn_puffing       !< switch on particle puffing         (in particle module)
-  logical :: use_kn_line_radiation !< switch on line radiation         (in particle module)
-  real*8  :: n_particles      !< the number of particles (real on purpose)
-  real*8  :: tstep_particles  !< the time step for the particles
-  integer :: nstep_particles  !< the number of particle time steps
-  integer :: nsubstep_particles !< the number of particles substeps (without projection)
-  real*8  :: filter_perp      !< particle projection smoothing parameter, poloidal plane
-  real*8  :: filter_hyper     !< particle projection smoothing parameter, poloidal plane
-  real*8  :: filter_par       !< particle projection smoothing parameter, parallel direction
-  real*8  :: filter_perp_n0   !< particle projection smoothing parameter, poloidal plane (n=0)
-  real*8  :: filter_hyper_n0  !< particle projection smoothing parameter, poloidal plane (n=0)
-  real*8  :: filter_par_n0    !< particle projection smoothing parameter, parallel direction (n=0)
+  !> @name Global quantity for REs 
+  real*8, allocatable :: re_current_t(:), Ipre_tot_t(:)
 
-  real*8  :: puff_rate        !< physical atoms/sec puffed (shared over 2 places)
-  real*8  :: r_valve          !< radius of poloidal circular source
-  real*8  :: R_valve_loc      !< R position valve 1
-  real*8  :: Z_valve          !< Z position valve 1
-  real*8  :: R_valve_loc2     !< R position valve 2
-  real*8  :: Z_valve2         !< Z position valve 2
-  integer :: n_puff           !< superparticles used per puffing action per valve
+  !> @name Particles-related input parameters
+  logical :: use_particles        !< Flag if simulation contains particles
+  integer :: n_aux_var            !< number of variables in aux_node_list
+  integer :: n_diag_var = n_var   !< number of variables in diag_node_list (= n_var is temporary)
+  logical :: restart_particles    !< Load in previously simulated particles from a the part_restart.h5 restart file?
+  logical :: use_marker           !< This flag determines whether to use marker particles to treat impurity (Placeholder)
+  real*8  :: tstep_particles      !< the time step for the particles
+  integer :: nstep_particles      !< the number of particle time steps (not used in kinetic_main)
+  integer :: nsubstep_particles   !< the number of particles substeps (without projection) (not used in kinetic_main)
+  real*8  :: filter_perp          !< particle projection smoothing parameter, poloidal plane
+  real*8  :: filter_hyper         !< particle projection smoothing parameter, poloidal plane
+  real*8  :: filter_par           !< particle projection smoothing parameter, parallel direction
+  real*8  :: filter_perp_n0       !< particle projection smoothing parameter, poloidal plane (n=0)
+  real*8  :: filter_hyper_n0      !< particle projection smoothing parameter, poloidal plane (n=0)
+  real*8  :: filter_par_n0        !< particle projection smoothing parameter, parallel direction (n=0)
+  logical :: apply_dirichlet_proj !< use dirichlet boundary conditions for the particle feedback projections
+  logical :: init_particles_only  !< only initialise particles, and produce part_restart files, do not run the simulation (only relevant when restart_particles=.f.)
+  integer :: find_RZ_nearby_iter  !< the maximum newton iterations used in find_RZ_nearby 
+  real*8  :: find_RZ_nearby_tol   !< the squared element tolerance used in find_RZ_nearby for finding a position inside an element (unit: element size)
+
+  ! -----------------------------------------------
+  ! --- Structures for particle valves 
+  ! -----------------------------------------------
+  !> @name Particle valve settings
+  integer, parameter :: n_valves_max = 20       !< maximum number of valves   
+
+  type :: type_valve
+    character(len=4)   :: type          !< four character code for the valve type ('circ', 'poly', or 'none')
+    real*8  :: phi                      !< toroidal angle of the valve 
+    ! --- specific to 'circ' type (circular valve) 
+    real*8  :: r_valve                  ! radius of poloidal circular valve 
+    real*8  :: R_valve_loc              ! R position of a circular valve 
+    real*8  :: Z_valve_loc              ! Z position of a circular valve
+    ! --- specific to 'poly' type (quadrangular valve)
+    real*8  :: poly_R(4)                ! R vertices of a quadrangular valve
+    real*8  :: poly_Z(4)                ! Z vertices of a quadrangular valve
+  end type type_valve
+  
+  type (type_valve), dimension(n_valves_max) :: valves 
+
+  ! ------------------------------------------------
+  ! --- Structures for puffing controls 
+  ! ------------------------------------------------
+  integer, parameter :: n_puff_segment_max = 20  !< length of the times and rates arrays in a puffing object
+  
+  ! the controller for the puffing of a particle group for a specified valve
+  type :: type_puff_ctrl
+    integer :: supers_num_puff            !< number of new superparticles initialised at each puff action
+    real*8  :: supers_weight_puff         !< aimed weight (no. real particles per superparticle) of the new superparticles initialised at each puff action
+    real*8  :: supers_ratio_puff          !< fraction of the total number of superparticles allocated for this group (i.e. part_group_configs(i)%n_particles) to use for each puff action
+    !< if none of these three above options are set, the supers_ratio_puff method
+    !< will be used, with its default value being set by supers_ratio_puff_default in mod_particle_puffing.f90
+
+    real*8  :: times(n_puff_segment_max)  !< array of time checkpoints (SI, in seconds) for which the puffing rate is specified (requires a defined puff_ctrl(i)%rates of the same length)   
+    real*8  :: rates(n_puff_segment_max)  !< array of specified puff rates (atoms/second) at given time checkpoints (requires a defined puff_ctrl(i)%times of the same length)
+  end type type_puff_ctrl
+
+  ! ------------------------------------------------
+  ! --- Structures for settings wall_action
+  ! ------------------------------------------------
+  integer, parameter  :: nmax_poly=10    !< maxixmum number of points in a polygon (used for part2self wall_actions)
+
+  !> Contains settings to define one wall_action (see mod_particle_wall_interaction for implementation
+  !> and the wiki for documentation at https://jorek.eu/wiki/doku.php?id=particles:wall_actions)
+  type :: type_wall_act_config
+    character(len=20) :: type               !< type of the wall interaction, namely "self sputter" (e.g. W -> W), "fluid sputter" (e.g. fluid D+ -> W), "other sputter" (e.g. kinetic N -> W), "reflection" (e.g. kinetic D -> D) or "wall recomb" (e.g. kinetic D+ -> D)
+    character(len=3)  :: target_group_id    !< which particle group (as identified by its %id) this wall interaction affects
+    real*8            :: weight_factor      !< additional weight factor of the yield (e.g. useful to simulate a non-unity wall albedo for a wall that partially absorbs incoming flux)
+    logical           :: only_in_polygon    !< whether to execute this wall_action only on the specified polygon (.true.) or on the full domain (.false.)
+    real*8            :: poly_R(nmax_poly)  !< R coordinates of the polygon. Make sure to define the polygon in order (the polygon is defined as linesegments drawn from point 1 to point 2 to point 3, etc.)
+    real*8            :: poly_Z(nmax_poly)  !< Z coordinates of the polygon.
+    character(len=10) :: nametag            !< for easy recognition of which action this is (with which polygon), used in the output file and for diagnostics (if left blank, it will be set to wall_act_configs(i) number i)
     
+    ! settings for number of superparticles created when new super particles must be initialised
+    integer           :: supers_num_wall    !< number of new superparticles initialised at each puff action
+    real*8            :: supers_weight_wall !< aimed weight (no. real particles per superparticle) of the new superparticles initialised at each puff action
+    real*8            :: supers_ratio_wall  !< fraction of the total number of superparticles allocated for this group (i.e. part_group_configs(i)%n_particles) to use for each puff action
+    !< if none of these three above options are set, the supers_ratio_wall method
+    !< will be used, with its default value being set by supers_ratio_wall_default in mod_particle_wall_interaction.f90
+  end type type_wall_act_config
+  
+  ! ------------------------------------------------
+  ! --- Structures for particle groups
+  ! ------------------------------------------------
+  !> @name Particle group settings
+  integer            :: n_part_groups                !< number of particle groups being used
+  integer, parameter :: n_part_groups_max = 20       !< maximum number of particle groups
+  integer            :: proj_collection_period       !< projections collected every proj_collection_period steps - only impletemeted for coupling scheme epf
+                                                     !< speed-up scheme - eg proj_collection_period=10 then projections collected every 10th particle step
+  
+  !> Contains configuration and settings relating to a particle group
+  type :: type_part_group_config
+    integer            :: Z                        !< Atomic number of al particles in the group (-1 for electrons, 0 for fieldline-following)
+    real*8             :: mass                     !< Mass of all the particles in the group
+    character(len=3)   :: coupling_scheme          !< three character code for the coupling scheme to use for the group
+    real*8             :: n_particles              !< number of super/marker particles allocated for the group (real*8 on purpose)
+    character(len=50)  :: type                     !< type of particle for the group (e.g. particle_kinetic_leapfrog)
+    character(len=3)   :: id                       !< unique identifer for the particle group (mainly used in in/export)
+    character(len=50)  :: init_function            !< name of the function to use for creating the initial distribution of in particles in the group
+    character(len=50)  :: init_pdf                 !< the pdf to be used by the init_function to sample the initial distribution of particles in the group 
+    logical            :: do_conservation_checks   !< whether to write conservation checks every interaction in the output file (i.e. the change in particles/momentum/energy etc.)
+
+    ! ================ for neutrals and impurities ('ncs' and 'ics' coupling schemes) particles ===============
+
+    character(len=8)    :: atom_data_suffix        !< suffix of ADAS data, temporary and should be replaced by relative path instead    
+    logical             :: use_kin_ionisation      !< switch on ionisation* for group 
+                                                   !  *for ics this also includes recombination as it switches on the changing of the particle's charge state               
+    logical             :: use_kin_puffing         !< switch on particle puffing for group    
+    logical             :: use_kin_radiation       !< switch on radiation for group (only line rad* for ncs, line rad + bremsstrahlung + recomb** for ics)
+                                                   !  *line radiation here refers to the radiation resultant from energy level changes of bound electrons 
+                                                   !  in neutrals/impurity ions due to collisions with the background plasma. Their spectra is discrete
+                                                   !  **recomb radiation results from the release of excess energy when a free electron is captured by an atom
+                                                   !  during recombination, and has a continous spectra
+    ! ---- neutrals (ncs) specific
+    logical             :: use_kin_cx              !< switch on charge-exchange for group 
+    logical             :: use_kin_recombination   !< switch on recombination from the plasma fluid to this kinetic neutrals group*
+                                                   !  *if 2+ ncs groups are present, how the fluid recombination is divided amongst the groups is not yet implemented
+    logical             :: use_kin_neutral_coll    !< switch on neutral self-collisions*
+                                                   !  *cross collisions between different neutrals species is not yet supported
+                                                   !   For more information on the neutral neutral collisions, see https://jorek.eu/wiki/doku.php?id=particles:neutral_neutral_collisions
+    real*8              :: neutral_coll_dTw(3)     !< the reference diameter d_ref [m], reference temperatrue T_ref [K] and viscosity index omega [-] of the variable hard sphere model for this neutral species
+    integer             :: ncoll_each_nstep_part   !< run neutral self collisions action at every i_inner_loop = ncoll_each_nstep_part. Default (-9999991*) interpreted as nstep_inner_loop (i.e. each fluid timestep)
+                                                   ! * -9999991 was chosen as default because it is the negative of a big prime, so it will produce strange results if the gcd or lcm of it and another number will be calculated, making it easier to debug if something is wrong
+
+    ! ---- impurities (ics) specific
+    logical             :: use_kin_bg_collisions   !< switch on collisions with the background plasma
+    character(len=9)    :: kin_bg_coll_type        !< choose type of heat flux used in collisions, either Homma2013 or Homma2020 at the moment
+    real*8              :: homma2020_alpha         !< alpha factor in Homma2020 heat flux to limit,
+                                                   !< recommended value is 1.5 for ion heat flux, see Homma 2020 and Fundamenski 2005
+    integer             :: ics_group_idx           !< internal index given to this specific impurities group, used to obtain the variable index of charge density
+                                                   !< projectons specific to this group, as we require a charge density projection for each impurities group for coupling
+                                             
+
+    !> --------------- puffing ----------------------
+
+    !> The index of the puff_ctrl array corresponds to the index of the valve the puffing will come from
+    !> i.e. puff_ctrl(1) will link the puff_ctrl to the valves(1)
+    type(type_puff_ctrl), dimension(n_valves_max) :: puff_ctrl 
+
+    !> --- the settings to define the wall_action objects for this particle group. Index is arbitrary
+    type(type_wall_act_config), dimension(n_part_groups_max) :: wall_act_configs
+    integer                                                  :: wall_act_each_nstep_part    !< run this group's particle-particle wall_actions every i_inner_loop = wall_act_each_nstep_part. Default (-9999991*) interpreted as nstep_inner_loop (i.e. each fluid timestep)
+                                                                                            ! * -9999991 was chosen as default because it is the negative of a big prime, so it will produce strange results if the gcd or lcm of it and another number will be calculated, making it easier to debug if something is wrong
+
+    ! ================ for runaway electrons ('rep' coupling scheme) particles ===============
+
+    real*8              :: num_re                  !< number of runaway electrons in the group
+    real*8              :: re_energy               !< energy [eV] of the runaway electrons in the group
+    real*8              :: re_std_energy           !< standard deviation of the energy [eV] of the runaway electrons in the group
+    real*8              :: re_pitch                !< pitch between RE momentum and magnetic field line (i.e. p_re_par/p_re_tot)
+
+    ! =============== for energetic particles ('epc', 'epp', 'epf' coupling schemes) ==========
+    real*8              :: T_maxwell               !< Maxwellian temperature [eV] for the energetic particles
+    integer             :: n_phi_planes            !< number of times to copy initialised particles around phi.
+                                                   !< for example n_phi_planes=4, n_particles=1e4 then only 250 particles are initialised
+                                                   !< each particle is then copied multiple (3) times around the torus with angle 2pi/n_phi_planes (= pi/2)
+                                                   !< if n_phi_planes=int*n_period then projected particle quantities are initialised as 0 for n_tor>1
+    real*8              :: n_particles_total       !< Total number of particles to simulate (ie sum(weights)) !!NOT n_particles - total number of super/numeric-particles
+
+
+  end type type_part_group_config
+
+  !> @name Particle groups in use (used when changing groups on restart), fill with group ids
+  character(len=3), dimension(n_part_groups_max) :: part_groups_in_use  
+
+  type (type_part_group_config), dimension(n_part_groups_max) :: part_group_configs 
+
+  real*8 :: part_kill_ratio !< the ratio weight/average_weight at which kinetic particles will be destroyed rather than get their weight reduced (by interactions such as ionisation and wall pumping)
+
+  ! ------------------------------------------------
+  ! --- Structures for fluid groups
+  ! ------------------------------------------------
+  !> @name Fluid group settings, to give more information on the underlying fluid species simulated
+  integer            :: n_fluid_groups                !< number of fluid groups being used
+  integer, parameter :: n_fluid_groups_max = 10       !< maximum number of fluid groups    
+
+  !> currently only holds information for wall_action objects from the fluid side
+  type :: type_fluid_config
+    integer :: Z                !< Z of this fluid species (e.g. -2 for D)
+    real*8  :: density_fraction !< fraction of the plasma density of this specific fluid. The density fractions of all used fluid configs should add up to 1
+    type(type_wall_act_config), dimension(n_part_groups_max) :: wall_act_configs
+  end type type_fluid_config
+
+  !> this makes it possible to e.g. simulate a DT fluid as a single MHD fluid 
+  !> but split out the flux to the wall partly to D and partly to T neutrals
+  type(type_fluid_config), dimension(n_fluid_groups_max) :: fluid_configs
+
   !> @name Mode families preconditioner parameters
   integer, parameter :: n_fam_max = 100               !< maximum number of families
   integer :: n_mode_families                          !< number of families
@@ -1030,6 +1191,8 @@ module phys_module
   integer :: manual_seed                              !< the manually set seed value
   logical :: use_fixed_rng_value                      !< forcibly set all rng outputs to return a specific value (set by fixed_rng_value, use this for debugging and testing only)
   real*8  :: fixed_rng_value                          !< the value the fixed rng is set to when using use_fixed_rng_value
+
+
   contains
   
 end module phys_module

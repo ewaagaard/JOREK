@@ -135,7 +135,15 @@ contains
         else
           ! --- The target has boundary 1 or 3
           direction(1) = 1
-          if (     (  ((bnd1 .eq. 1) .or. (bnd1 .eq. 3)) .and. ((bnd2 .eq. 1) .or. (bnd2 .eq. 3))  ) &
+          if ((bnd1 .eq. 9) .and. (bnd2 .eq. 9)) then ! for removed triangle, we get 9 - 9 boundary, where it could be either s=const or t=const
+            ! so we use the fact that the nodes are consistently defining which sides are the s and t sides (identical to that in grids/mod_boundary.f90)
+            if ( mod(iv,2) == 1 ) then
+              direction(2) = 2
+            else
+              direction(2) = 3
+            end if
+              
+          elseif ( (  ((bnd1 .eq. 1) .or. (bnd1 .eq. 3)) .and. ((bnd2 .eq. 1) .or. (bnd2 .eq. 3))  ) &
               .or. (  ((bnd1 .eq. 1) .or. (bnd1 .eq. 9)) .and. ((bnd2 .eq. 1) .or. (bnd2 .eq. 9))  ) &
               .or. (  ((bnd1 .eq. 4) .or. (bnd1 .eq. 9)) .and. ((bnd2 .eq. 4) .or. (bnd2 .eq. 9))  ) &
               .or. (  ((bnd1 .eq. 1) .or. (bnd1 .eq. 4)) .and. ((bnd2 .eq. 4) .or. (bnd2 .eq. 1))  ) ) then
@@ -159,6 +167,14 @@ contains
             cycle
           endif
         endif
+
+        ! sanity check of the above code: the side between node 1 and 2 (iv=1), and nodes 3 and 4 (iv=3) should have direction(2)=2 (i.e. t=const.), while 
+        ! the other two sides between nodes 2 and 3 (iv=2), and 4 and 1 (iv=4) should have direction(2)=3 (i.e. s=cont.)
+        if (((direction(2)==2) .and. ( mod(iv,2) /= 1 )) .or. ((direction(2)==3) .and. (mod(iv,2) /= 0))) then
+          !$omp critical
+          write(*,"(A,3I6)") "ERROR: There seems to be an inconsistency in direction(2) in matrix/construct_matrix_mod.f90, (direction(2) / iv / node)=", direction(2),iv,inode1
+          !$omp end critical
+        end if
           
 
         ! --- Build matrix elements for boundary

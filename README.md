@@ -4,10 +4,10 @@
 [![CITATION](https://img.shields.io/badge/CITATION-JOREK-green)](https://github.com/JOREK-Community/JOREK/blob/main/CITATION.cff)
 
 ## About JOREK
-The non-linear extended MHD code JOREK resolves realistic toroidal tokamak X-point geometries with a G1 continuous flux-surface aligned grid including main plasma, scrape-off layer and divertor region. It is based on robust fully implicit numerics, and includes sheath boundary conditions, resistive wall effects, two-fluid effects and neoclassical flows, kinetic particle models, and further extensions. Main physics applications are the physics and control of disruptions and edge localized modes (ELMs).[web:1]
+The non-linear extended MHD code JOREK resolves realistic toroidal tokamak X-point geometries with a G1 continuous flux-surface aligned grid including main plasma, scrape-off layer and divertor region. It is based on robust fully implicit numerics, and includes sheath boundary conditions, resistive wall effects, two-fluid effects and neoclassical flows, kinetic particle models, and further extensions. Main physics applications are the physics and control of disruptions and edge localized modes (ELMs).
 
 ## License
-JOREK is licensed under LGPLv3.0-or-later. For contributions: Sign commits with `Signed-off-by` (DCO 1.1), where DCO refers to Developer Certificate of Origin that ensures compliance with the license requirements. [web:12]
+JOREK is licensed under LGPLv3.0-or-later. For contributions: Sign commits with `Signed-off-by` (DCO 1.1), where DCO refers to Developer Certificate of Origin that ensures compliance with the license requirements.
 
 ## Citing JOREK
 All publications using JOREK **must** cite the overview article (Nuclear Fusion 61, 065001 (2021)) and relevant prior works listed in [CITATION.cff](./CITATION.cff) and on the JOREK code website. GitHub generates BibTeX/APA.
@@ -20,5 +20,5 @@ All publications using JOREK **must** cite the overview article (Nuclear Fusion 
 - Code of Conduct: [See GOVERNANCE.md](./GOVERNANCE.md)
 
 ## Development
-- Repository: <<<<<link to url needs to be added>>>>>>
-- Contact: admin@jorek.eu
+- Repository: [JOREK](https://github.com/iterorganization/JOREK)
+- Contact: admin@jorek.eu 

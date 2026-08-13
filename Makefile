@@ -61,11 +61,13 @@ DIRS := diagnostics				\
 	models/$(MODEL)				\
 	refinement				\
 	matrix					\
+	numerics				\
 	particles				\
 	particles/pushers			\
 	particles/examples			\
 	particles/diagnostics			\
 	particles/tests				\
+	particles/initialisers      \
 	particles/postprocessors		\
 	particles/postprocessors/spectra	\
 	particles/postprocessors/lights		\

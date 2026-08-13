@@ -11,7 +11,7 @@ contains
 
 
 !< Create a grid from parameters n_flux, n_pol
-subroutine flux_grid(node_list, element_list, bnd_node_list, bnd_elm_list, my_id, n_cpu)
+subroutine flux_grid(node_list, element_list, bnd_node_list, bnd_elm_list, my_id, n_mpi)
   use phys_module
   use data_structure
   use mpi_mod
@@ -29,7 +29,7 @@ subroutine flux_grid(node_list, element_list, bnd_node_list, bnd_elm_list, my_id
   type(type_bnd_node_list),    intent(inout) :: bnd_node_list
   type(type_bnd_element_list), intent(inout) :: bnd_elm_list
   integer,                     intent(in)    :: my_id
-  integer,                     intent(in)    :: n_cpu
+  integer,                     intent(in)    :: n_mpi
 
   type (type_surface_list) :: surface_list
   integer                  :: list_to_be_refined(n_ref_list), n_to_be_refined    
@@ -87,7 +87,7 @@ subroutine flux_grid(node_list, element_list, bnd_node_list, bnd_elm_list, my_id
     if (extend_existing_grid) &
         call grid_patches_on_existing_grid(node_list, element_list)
 
-    if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_cpu, .false.)
+    if ( freeboundary .and. freeb_change_indices ) call exchange_indices(node_list, my_id, n_mpi, .false.)
 
     ! --- Determine boundary information from the grid
     call boundary_from_grid(node_list, element_list, bnd_node_list, bnd_elm_list, .false.) 

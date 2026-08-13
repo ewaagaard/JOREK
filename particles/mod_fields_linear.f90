@@ -558,7 +558,7 @@ subroutine merge_restart(node_list,element_list, restart_file, format_rst,my_id,
   !$omp end parallel do
 
   ! Set timestep to time between restart files
-  tstep = t_start - tstart_old
+  tstep_rst = t_start - tstart_old
 
   deallocate(values)
 end subroutine merge_restart

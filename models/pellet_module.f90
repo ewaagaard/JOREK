@@ -3,7 +3,8 @@ module pellet_module
   use constants
   use data_structure
   use phys_module
-  
+  use mod_interp, only: interp, interp_PRZ
+
   
   real*8 :: total_pellet_particles    !< the (total) pellet particles added in this timestep
   real*8 :: total_plasma_particles    !< the total plasma density (before this timestep)
@@ -130,7 +131,6 @@ module pellet_module
     use data_structure
     use phys_module
     use mpi_mod
-    use mod_interp, only: interp
     !use mod_integrals3D
     
     implicit none
