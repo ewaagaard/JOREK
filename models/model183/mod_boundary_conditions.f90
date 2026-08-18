@@ -154,6 +154,9 @@ contains
                                           index_node, var_Vpar, in, index_node, var_T, in,                &
                                           -zbig * get_vpar_target_dT_for_column(inode, in),               &
                                           index_min, index_max, a_mat)
+                                    write(*,*) 'inode=', inode, ' in=', in, &
+                                               ' get_vpar_target_dT_for_column=', get_vpar_target_dT_for_column(inode,in), &
+                                               ' A(Vpar,T) entry=', -zbig*get_vpar_target_dT_for_column(inode,in)
                                  endif
                               endif
                             endif

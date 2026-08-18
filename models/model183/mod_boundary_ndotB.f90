@@ -178,14 +178,14 @@ subroutine finalize_boundary_ndotB()
   use corr_neg, only: corr_neg_temp, dcorr_neg_temp_dT
   use phys_module, only: vpar_sbc_alpha0, vpar_sbc_strength, vpar_sbc_smooth_sign, &
                          vpar_sbc_angle_scale, T_1, GAMMA, ndotB_evolving, loop_voltage, &
-                         sbc_use_local_T, vpar_sbc_enable
-  use mod_model_settings, only: var_T
+                         sbc_use_local_T, vpar_sbc_enable, vpar_sbc_T_floor
+  use mod_model_settings, only: var_T, var_Vpar
   implicit none
   real*8, parameter :: pi = 3.14159265358979d0
   integer :: i, mp, in, n_with_data, ierr, my_id
   real*8 :: ndotB_sum, ndotB_avg, ndotB_min, ndotB_max
   real*8 :: phi, ndotB_val, cos_n, sin_n
-  real*8 :: alpha0_rad, alpha_rad, factor_sbc, vpar_target_val, dvpar_target_dT_val, dT_local_dT_DOF, cs, T_local
+  real*8 :: alpha0_rad, alpha_rad, factor_sbc, vpar_target_val, dvpar_target_dT_val, dT_local_dT_DOF, cs, T_local, cs_for_deriv
   real*8, allocatable :: ndotB_global(:), count_global(:)
   real*8, allocatable :: ndotB_plane_global(:,:), count_plane_global(:,:)
   logical, save       :: diag_printed = .false.
@@ -264,6 +264,9 @@ subroutine finalize_boundary_ndotB()
 
   do i = 1, n_nodes_stored
 
+    if (my_id==0) then
+      write(*,*) 'RAW T before corr_neg_temp at node', i, ':', node_list%node(i)%values(1,1,var_T)
+    endif
     ! Use node-local temperature if needed
     if (sbc_use_local_T .and. var_T .gt. 0) then
       ! Note: 2T mode (var_T=0) always falls back to T_1.
@@ -278,6 +281,7 @@ subroutine finalize_boundary_ndotB()
 
     ! Compute sound speed
     cs = sqrt(GAMMA * T_local)
+    cs_for_deriv = sqrt(GAMMA * max(T_local, vpar_sbc_T_floor)) ! for dvpar_target_dT_val only
 
     do in = 1, n_tor_stored
       do mp = 1, n_plane_stored
@@ -293,7 +297,7 @@ subroutine finalize_boundary_ndotB()
           vpar_target_val = cs * tanh(ndotB_val / sin(alpha0_rad)) * vpar_sbc_strength
 
           ! T derivative with chain rule
-          dvpar_target_dT_val = (GAMMA / (2.d0*cs)) * tanh(ndotB_val / sin(alpha0_rad)) &
+          dvpar_target_dT_val = (GAMMA / (2.d0*cs_for_deriv)) * tanh(ndotB_val / sin(alpha0_rad)) &
                       * vpar_sbc_strength * dT_local_dT_DOF
         else
           ! Original formulation: vpar = sign(ndotB) * cs * tanh(|alpha|/alpha0)
@@ -302,7 +306,7 @@ subroutine finalize_boundary_ndotB()
           factor_sbc = tanh(alpha_rad / alpha0_rad)
           vpar_target_val = sign(1.d0, ndotB_val) * cs * factor_sbc * vpar_sbc_strength
 
-          dvpar_target_dT_val = sign(1.d0, ndotB_val) * (GAMMA / (2.d0*cs)) * factor_sbc &
+          dvpar_target_dT_val = sign(1.d0, ndotB_val) * (GAMMA / (2.d0*cs_for_deriv)) * factor_sbc &
                                 * vpar_sbc_strength * dT_local_dT_DOF
         endif
         
@@ -342,12 +346,22 @@ subroutine finalize_boundary_ndotB()
       endif
     enddo
 
-    if (my_id==0 .and. node_list%node(i)%boundary .ne. 0 .and. .not. diag_printed) then
+    if (my_id==0 .and. node_list%node(i)%boundary .ne. 0) then !.and. .not. diag_printed) then
       write(*, "(A)") "Mod_boundary_ndotB:"
       write(*,'(A,I6,A,E12.4,A,E12.4,A,E12.4,A,E12.4)') &
         " i=", i, " T_local=", T_local, " cs=", cs, &
         " vpar_target_fourier_cos=", vpar_target_fourier_cos(i,1), &
         " vpar_target_fourier_sin=", vpar_target_fourier_sin(i,1)
+      if (var_Vpar .gt. 0) then
+        write(*,'(A,E12.4,A,E12.4)') &
+          "   vpar_target_dT_fourier_cos=", vpar_target_dT_fourier_cos(i,1), &
+          " vpar_current(DC)=", node_list%node(i)%values(1,1,var_Vpar)
+      endif
+      if (sbc_use_local_T .and. vpar_sbc_enable .and. T_local .lt. vpar_sbc_T_floor) then
+        write(*,'(A,E12.4,A,E12.4)') "WARNING: node T_local=", T_local, &
+          " below vpar_sbc_T_floor=", vpar_sbc_T_floor, " -- v_par SBC Jacobian capped for stability."
+        write(*,*) "FLOOR-CODE-MARKER-V2"
+      endif
       diag_printed = .true.
       if (vpar_sbc_enable .and. sbc_use_local_T) then
         write(*,'(A)') "NOTE: sbc_use_local_T=.true. with vpar_sbc_enable=.true."
