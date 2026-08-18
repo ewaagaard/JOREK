@@ -264,9 +264,6 @@ subroutine finalize_boundary_ndotB()
 
   do i = 1, n_nodes_stored
 
-    if (my_id==0) then
-      write(*,*) 'RAW T before corr_neg_temp at node', i, ':', node_list%node(i)%values(1,1,var_T)
-    endif
     ! Use node-local temperature if needed
     if (sbc_use_local_T .and. var_T .gt. 0) then
       ! Note: 2T mode (var_T=0) always falls back to T_1.
@@ -346,7 +343,7 @@ subroutine finalize_boundary_ndotB()
       endif
     enddo
 
-    if (my_id==0 .and. node_list%node(i)%boundary .ne. 0) then !.and. .not. diag_printed) then
+    if (my_id==0 .and. node_list%node(i)%boundary .ne. 0 .and. .not. diag_printed) then
       write(*, "(A)") "Mod_boundary_ndotB:"
       write(*,'(A,I6,A,E12.4,A,E12.4,A,E12.4,A,E12.4)') &
         " i=", i, " T_local=", T_local, " cs=", cs, &
