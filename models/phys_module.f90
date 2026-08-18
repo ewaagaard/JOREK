@@ -253,6 +253,8 @@ module phys_module
   
   ! SBC local temperature interpolation
   logical :: sbc_use_local_T  !< If true, use interpolated local T at boundary for sound speed. If false, use T_1.
+  real*8  :: vpar_sbc_T_floor ! Minimum T_local used when computing the v_par SBC T-derivative to protect against against 1/cs -> infinity as edge T -> 0
+                              ! Does NOT affect the target value itself, only its Jacobian coupling.
 
   !> Points used as blocks to extend grid into complex wall structures, see https://www.jorek.eu/wiki/doku.php?id=wallgrid_tutorial
   real*8  :: surface_cross_tol                                                  !< Tolerance when looking for crossing of polar lines and surfaces, needs to be > 1.0

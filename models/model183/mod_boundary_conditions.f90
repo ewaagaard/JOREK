@@ -33,8 +33,9 @@ contains
 
     use phys_module, only: F0, bc_natural_open, vpar_sbc_enable,&
                            particle_flux_sbc_enable, heat_flux_sbc_enable, &
-                           loop_voltage, tstep, central_density, central_mass
-    use mod_boundary_ndotB, only: get_vpar_target_for_column
+                           loop_voltage, tstep, central_density, central_mass, &
+                           sbc_use_local_T
+    use mod_boundary_ndotB, only: get_vpar_target_for_column, get_vpar_target_dT_for_column
     use mod_model_settings, only: var_Psi, var_Phi, var_zj, var_w, var_rho, var_T, &
                                   var_Vpar, var_Ti, var_Te, n_var
     use vacuum, only: is_freebound
@@ -137,9 +138,8 @@ contains
                               ! Compute angle-dependent target if SBC enabled
                               if (vpar_sbc_enable) then
                                 ! calculate delta vpar and apply, just like in model 600
-                                ! NOTE: target treated as frozen (RHS-only, yet no A(Vpar,T) coupling) as model 600
-                                ! exact when sbc_use_local_T=.false. (T_1 is a constant, not a DOF). 
-                                ! approximation if sbc_use_local_T=.true. -- see warning in mod_boundary_ndotB.f90.
+                                ! NOTE: target treated as frozen when sbc_use_local_T=.false. (T_1 is a constant, not a DOF). 
+                                ! Otherwise include the actual derivatives, just like in model 600
                                 delta_vpar = get_vpar_target_for_column(inode, in) &
                                               - node_list%node(inode)%values(in,1,var_Vpar)
 
@@ -147,6 +147,14 @@ contains
                                         index_node, k, in, index_min, index_max,       &
                                         rhs_loc, zbig * delta_vpar,                    &
                                         a_mat%i_tor_min, a_mat%i_tor_max)
+
+                                 ! add dT derivative entry if using local T
+                                 if (sbc_use_local_T .and. var_T .gt. 0) then
+                                    call boundary_conditions_add_one_entry(                                &
+                                          index_node, var_Vpar, in, index_node, var_T, in,                &
+                                          -zbig * get_vpar_target_dT_for_column(inode, in),               &
+                                          index_min, index_max, a_mat)
+                                 endif
                               endif
                             endif
 

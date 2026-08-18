@@ -19,6 +19,7 @@ module mod_boundary_ndotB
   public :: get_ndotB_at_node
   public :: get_ndotB_fourier_at_node
   public :: get_vpar_target_for_column
+  public :: get_vpar_target_dT_for_column
   
   ! Per-node storage (toroidally averaged, for backward compatibility)
   real*8, allocatable, save :: ndotB_per_node(:)
@@ -32,9 +33,11 @@ module mod_boundary_ndotB
   real*8, allocatable, save :: ndotB_fourier_cos(:,:)  ! (n_nodes, n_tor)
   real*8, allocatable, save :: ndotB_fourier_sin(:,:)  ! (n_nodes, n_tor)
   
-  ! Fourier coefficients of vpar_target (with tanh smoothing applied in physical space)
+  ! Fourier coefficients of vpar_target (with tanh smoothing applied in physical space) and derivatives
   real*8, allocatable, save :: vpar_target_fourier_cos(:,:)  ! (n_nodes, n_tor)
   real*8, allocatable, save :: vpar_target_fourier_sin(:,:)  ! (n_nodes, n_tor)
+  real*8, allocatable, save :: vpar_target_dT_fourier_cos(:,:)
+  real*8, allocatable, save :: vpar_target_dT_fourier_sin(:,:)
   
   logical, save :: ndotB_initialized = .false.
   logical, save :: ndotB_finalized = .false.
@@ -89,6 +92,8 @@ subroutine init_boundary_ndotB(n_nodes, n_plane_in, n_tor_in)
   if (allocated(ndotB_fourier_sin)) deallocate(ndotB_fourier_sin)
   if (allocated(vpar_target_fourier_cos)) deallocate(vpar_target_fourier_cos)
   if (allocated(vpar_target_fourier_sin)) deallocate(vpar_target_fourier_sin)
+  if (allocated(vpar_target_dT_fourier_cos)) deallocate(vpar_target_dT_fourier_cos)
+  if (allocated(vpar_target_dT_fourier_sin)) deallocate(vpar_target_dT_fourier_sin)
   
   ! Allocate per-node (backward compatible)
   allocate(ndotB_per_node(n_nodes))
@@ -103,6 +108,8 @@ subroutine init_boundary_ndotB(n_nodes, n_plane_in, n_tor_in)
   allocate(ndotB_fourier_sin(n_nodes, n_tor_local))
   allocate(vpar_target_fourier_cos(n_nodes, n_tor_local))
   allocate(vpar_target_fourier_sin(n_nodes, n_tor_local))
+  allocate(vpar_target_dT_fourier_cos(n_nodes, n_tor_local))
+  allocate(vpar_target_dT_fourier_sin(n_nodes, n_tor_local))
   
   ndotB_per_node = 0.d0
   ndotB_count_per_node = 0.d0
@@ -112,6 +119,8 @@ subroutine init_boundary_ndotB(n_nodes, n_plane_in, n_tor_in)
   ndotB_fourier_sin = 0.d0
   vpar_target_fourier_cos = 0.d0
   vpar_target_fourier_sin = 0.d0
+  vpar_target_dT_fourier_cos = 0.d0
+  vpar_target_dT_fourier_sin = 0.d0
   
   n_nodes_stored = n_nodes
   n_plane_stored = n_plane_local
@@ -166,20 +175,20 @@ subroutine finalize_boundary_ndotB()
   use mpi
   use nodes_elements
   use mod_parameters, only: n_period
-  use corr_neg, only: corr_neg_temp
+  use corr_neg, only: corr_neg_temp, dcorr_neg_temp_dT
   use phys_module, only: vpar_sbc_alpha0, vpar_sbc_strength, vpar_sbc_smooth_sign, &
                          vpar_sbc_angle_scale, T_1, GAMMA, ndotB_evolving, loop_voltage, &
-                         sbc_use_local_T
-  use mod_model_settings, only: var_T
+                         sbc_use_local_T, vpar_sbc_enable, vpar_sbc_T_floor
+  use mod_model_settings, only: var_T, var_Vpar
   implicit none
   real*8, parameter :: pi = 3.14159265358979d0
   integer :: i, mp, in, n_with_data, ierr, my_id
   real*8 :: ndotB_sum, ndotB_avg, ndotB_min, ndotB_max
   real*8 :: phi, ndotB_val, cos_n, sin_n
-  real*8 :: alpha0_rad, alpha_rad, factor_sbc, vpar_target_val, cs, T_local
+  real*8 :: alpha0_rad, alpha_rad, factor_sbc, vpar_target_val, dvpar_target_dT_val, dT_local_dT_DOF, cs, T_local, cs_for_deriv
   real*8, allocatable :: ndotB_global(:), count_global(:)
   real*8, allocatable :: ndotB_plane_global(:,:), count_plane_global(:,:)
-  logical             :: diag_printed = .false.
+  logical, save       :: diag_printed = .false.
   
   if (.not. ndotB_initialized) return
   if (ndotB_finalized) return
@@ -248,6 +257,8 @@ subroutine finalize_boundary_ndotB()
   ndotB_fourier_sin = 0.d0
   vpar_target_fourier_cos = 0.d0
   vpar_target_fourier_sin = 0.d0
+  vpar_target_dT_fourier_cos = 0.d0
+  vpar_target_dT_fourier_sin = 0.d0
   
   alpha0_rad = vpar_sbc_alpha0 * pi / 180.d0
 
@@ -258,18 +269,16 @@ subroutine finalize_boundary_ndotB()
       ! Note: 2T mode (var_T=0) always falls back to T_1.
       ! For physical 2T SBC, this should use Ti+Te at the boundary.
       ! This requires separate implementation when 2T SBC is needed.
-      !
-      ! WARNING: unlike the T_1 branch below, T_local here IS a solved matrix unknown
-      ! (node%values(1,1,var_T)). The v_par target built from it is therefore a function
-      ! of a live DOF, but no Jacobian entry A(Vpar,T) exists anywhere for this dependence
-      ! TO BE ADDED FOR NEXT PR
       T_local = corr_neg_temp(node_list%node(i)%values(1,1,var_T))
+      dT_local_dT_DOF = dcorr_neg_temp_dT(node_list%node(i)%values(1,1,var_T))
     else
-      T_local = corr_neg_temp(T_1)  ! Use normalized SOL temperature, fixed constant so no a_mat terms needed 
+      T_local = corr_neg_temp(T_1)  ! Use normalized SOL temperature, fixed constant so no a_mat terms needed
+      dT_local_dT_DOF = 0.d0   ! T_1 is a constant, not a solved DOF -- derivative is exactly zero 
     endif
 
     ! Compute sound speed
     cs = sqrt(GAMMA * T_local)
+    cs_for_deriv = sqrt(GAMMA * max(T_local, vpar_sbc_T_floor)) ! for dvpar_target_dT_val only
 
     do in = 1, n_tor_stored
       do mp = 1, n_plane_stored
@@ -283,12 +292,19 @@ subroutine finalize_boundary_ndotB()
           ! This avoids sign() discontinuity that causes Gibbs phenomenon
           ! ndotB = sin(alpha), so sin(alpha0) normalizes to make transition at alpha0
           vpar_target_val = cs * tanh(ndotB_val / sin(alpha0_rad)) * vpar_sbc_strength
+
+          ! T derivative with chain rule
+          dvpar_target_dT_val = (GAMMA / (2.d0*cs_for_deriv)) * tanh(ndotB_val / sin(alpha0_rad)) &
+                      * vpar_sbc_strength * dT_local_dT_DOF
         else
           ! Original formulation: vpar = sign(ndotB) * cs * tanh(|alpha|/alpha0)
           ! Has sign() discontinuity causing Gibbs overshoot at ndotB sign changes
           alpha_rad = asin(min(1.d0, max(-1.d0, abs(ndotB_val))))
           factor_sbc = tanh(alpha_rad / alpha0_rad)
           vpar_target_val = sign(1.d0, ndotB_val) * cs * factor_sbc * vpar_sbc_strength
+
+          dvpar_target_dT_val = sign(1.d0, ndotB_val) * (GAMMA / (2.d0*cs_for_deriv)) * factor_sbc &
+                                * vpar_sbc_strength * dT_local_dT_DOF
         endif
         
         ! Fourier coefficient for mode (in-1) [0-indexed internally]
@@ -300,9 +316,11 @@ subroutine finalize_boundary_ndotB()
         ndotB_fourier_cos(i, in) = ndotB_fourier_cos(i, in) + ndotB_val * cos_n
         ndotB_fourier_sin(i, in) = ndotB_fourier_sin(i, in) + ndotB_val * sin_n
         
-        ! Fourier transform of vpar_target (for BC application - nonlinear!)
+        ! Fourier transform of vpar_target (for BC application - nonlinear!) and derivative
         vpar_target_fourier_cos(i, in) = vpar_target_fourier_cos(i, in) + vpar_target_val * cos_n
         vpar_target_fourier_sin(i, in) = vpar_target_fourier_sin(i, in) + vpar_target_val * sin_n
+        vpar_target_dT_fourier_cos(i, in) = vpar_target_dT_fourier_cos(i, in) + dvpar_target_dT_val * cos_n
+        vpar_target_dT_fourier_sin(i, in) = vpar_target_dT_fourier_sin(i, in) + dvpar_target_dT_val * sin_n
       enddo
       
       ! Normalize by number of planes (DFT normalization)
@@ -310,6 +328,8 @@ subroutine finalize_boundary_ndotB()
       ndotB_fourier_sin(i, in) = ndotB_fourier_sin(i, in) / dble(n_plane_stored)
       vpar_target_fourier_cos(i, in) = vpar_target_fourier_cos(i, in) / dble(n_plane_stored)
       vpar_target_fourier_sin(i, in) = vpar_target_fourier_sin(i, in) / dble(n_plane_stored)
+      vpar_target_dT_fourier_cos(i, in) = vpar_target_dT_fourier_cos(i, in) / dble(n_plane_stored)
+      vpar_target_dT_fourier_sin(i, in) = vpar_target_dT_fourier_sin(i, in) / dble(n_plane_stored)
       
       ! For n=0 mode (in=1), the normalization is just the average
       ! For n>0 modes, multiply by 2 (standard DFT convention for real signals)
@@ -318,6 +338,8 @@ subroutine finalize_boundary_ndotB()
         ndotB_fourier_sin(i, in) = ndotB_fourier_sin(i, in) * 2.d0
         vpar_target_fourier_cos(i, in) = vpar_target_fourier_cos(i, in) * 2.d0
         vpar_target_fourier_sin(i, in) = vpar_target_fourier_sin(i, in) * 2.d0
+        vpar_target_dT_fourier_cos(i, in) = vpar_target_dT_fourier_cos(i, in) * 2.d0
+        vpar_target_dT_fourier_sin(i, in) = vpar_target_dT_fourier_sin(i, in) * 2.d0
       endif
     enddo
 
@@ -327,12 +349,20 @@ subroutine finalize_boundary_ndotB()
         " i=", i, " T_local=", T_local, " cs=", cs, &
         " vpar_target_fourier_cos=", vpar_target_fourier_cos(i,1), &
         " vpar_target_fourier_sin=", vpar_target_fourier_sin(i,1)
+      if (var_Vpar .gt. 0) then
+        write(*,'(A,E12.4,A,E12.4)') &
+          "   vpar_target_dT_fourier_cos=", vpar_target_dT_fourier_cos(i,1), &
+          " vpar_current(DC)=", node_list%node(i)%values(1,1,var_Vpar)
+      endif
+      if (sbc_use_local_T .and. vpar_sbc_enable .and. T_local .lt. vpar_sbc_T_floor) then
+        write(*,'(A,E12.4,A,E12.4)') "WARNING: node T_local=", T_local, &
+          " below vpar_sbc_T_floor=", vpar_sbc_T_floor, " -- v_par SBC Jacobian capped for stability."
+        write(*,*) "FLOOR-CODE-MARKER-V2"
+      endif
       diag_printed = .true.
       if (vpar_sbc_enable .and. sbc_use_local_T) then
-        write(*,'(A)') "WARNING: sbc_use_local_T=.true. with vpar_sbc_enable=.true.:"
-        write(*,'(A)') "  v_par target depends on solved boundary T, but no A(Vpar,T)"
-        write(*,'(A)') "  Jacobian entry is assembled. Target is lagged (RHS-only), not"
-        write(*,'(A)') "  fully implicit. Not an issue for the validated sbc_use_local_T=.false."
+        write(*,'(A)') "NOTE: sbc_use_local_T=.true. with vpar_sbc_enable=.true."
+        write(*,'(A)') "T-derivative Jacobian coupling active for v_par SBC (single-T mode)."
       endif
     endif
 
@@ -451,5 +481,39 @@ function get_vpar_target_for_column(inode, in) result(vpar_target)
   endif
 
 end function get_vpar_target_for_column
+
+function get_vpar_target_dT_for_column(inode, in) result(vpar_target_dT)
+  !---------------------------------------------------------------------------
+  ! Return target_T for derivatives, for JOREK column index 'in' at boundary node.
+  implicit none
+  integer, intent(in) :: inode, in
+  real*8 :: vpar_target_dT
+  integer :: k_fourier
+
+  if (.not. ndotB_initialized .or. inode < 1 .or. inode > n_nodes_stored) then
+    vpar_target_dT = 0.d0
+    return
+  endif
+
+  if (in .eq. 1) then
+    vpar_target_dT = vpar_target_dT_fourier_cos(inode, 1) 
+    return
+  endif
+
+  k_fourier = in / 2 + 1
+  if (k_fourier > n_tor_stored) then
+    vpar_target_dT = 0.d0
+    return
+  endif
+
+  if (mod(in, 2) .eq. 0) then
+    ! Even in: cosine component
+    vpar_target_dT = vpar_target_dT_fourier_cos(inode, k_fourier)
+  else
+    ! Odd in: sine component; JOREK basis is -sin
+    vpar_target_dT = -vpar_target_dT_fourier_sin(inode, k_fourier)
+  endif
+
+end function get_vpar_target_dT_for_column
 
 end module mod_boundary_ndotB

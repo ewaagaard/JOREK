@@ -94,8 +94,9 @@ subroutine preset_parameters
                              ! NOTE: with .false. (current default/validated setting), the v_par SBC
                              ! target has zero dependence on any solved variable (T_1 is a fixed
                              ! namelist constant) - no Jacobian coupling is needed or missing.
-                             ! With .true., T_local becomes a solved DOF and this is NOT yet true
-                             ! (see warning in mod_boundary_ndotB.f90), still to be implemented
+                             ! With .true., T_local becomes a solved DOF
+  vpar_sbc_T_floor = 1.d-4   ! Minimum T_local used when computing the v_par SBC T-derivative 
+                             ! to protect against against 1/cs, does not affect target value itself
 
   freeboundary_equil = .false. ! use free or fixed boundary equilibrium
   freeboundary       = .false. ! use free or fixed boundary?
