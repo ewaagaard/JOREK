@@ -1100,7 +1100,10 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
           write(*,LOGI_FMT) 'use_kin_cx,             ',sim%groups(group_num)%use_kin_cx
           write(*,LOGI_FMT) 'use_kin_recombination,  ',sim%groups(group_num)%use_kin_recombination
           write(*,LOGI_FMT) 'use_kin_neutral_coll,   ',sim%groups(group_num)%use_kin_neutral_coll
-          if(sim%groups(group_num)%use_kin_neutral_coll) write(*,REAL_FMT) 'neutral_coll_dTw,       ',part_group_configs(group_num)%neutral_coll_dTw
+          if(sim%groups(group_num)%use_kin_neutral_coll) then
+            write(*,REAL_FMT) 'neutral_coll_dTw,       ',part_group_configs(group_num)%neutral_coll_dTw
+            write(*,INTG_FMT) 'ncoll_each_nstep_part,  ',part_group_configs(group_num)%ncoll_each_nstep_part
+          endif
         endif
 
         ! ics specific
@@ -1185,7 +1188,6 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
           else
             write(*,"(3X,A,' = ',99ES12.4)")    'supers_ratio_wall     ', part_group_configs(group_num)%wall_act_configs(i)%supers_ratio_wall
           endif
-
         end do
       end if !wall actions
 
@@ -1237,7 +1239,6 @@ write(*,'(1x,a)',advance='no') ' USE_DOMM            : '
           else
             write(*,"(3X,A,' = ',99ES12.4)")    'supers_ratio_wall     ', fluid_configs(group_num)%wall_act_configs(i)%supers_ratio_wall
           endif
-
         end do
       end if !wall actions
 

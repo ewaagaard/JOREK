@@ -917,6 +917,7 @@ part_group_configs(:)%use_kin_neutral_coll   = .false.
 do i=1,n_part_groups_max
   part_group_configs(i)%neutral_coll_dTw(:)  = -1.d99
 end do
+part_group_configs(:)%ncoll_each_nstep_part  = -9999991
 ! --- ics only
 part_group_configs(:)%use_kin_bg_collisions  = .false.
 part_group_configs(:)%kin_bg_coll_type       = 'Homma2020'

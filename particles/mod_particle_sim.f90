@@ -82,7 +82,7 @@ contains
 !> Loads the information from a type_part_group_config type to a particle_group type
 subroutine configure_particle_groups(sim)
   use phys_module, only: n_part_groups, part_group_configs, type_part_group_config
-  use phys_module, only: part_groups_in_use
+  use phys_module, only: part_groups_in_use, deuterium_adas
   use mod_particle_group_id, only: matching_part_config_indices, matching_sim_groups_indices
 
   implicit none
@@ -117,13 +117,20 @@ subroutine configure_particle_groups(sim)
       sim%groups(i)%kin_bg_coll_type       =  config%kin_bg_coll_type
       sim%groups(i)%homma2020_alpha        =  config%homma2020_alpha
       sim%groups(i)%ics_group_idx          =  config%ics_group_idx
-    
+   
+      ! --- Input sanity checks 
       if (len_trim(config%atom_data_suffix) > 0) then
         sim%groups(i)%ad =  read_adf11(sim%my_id, trim(part_group_configs(i)%atom_data_suffix))
       else
         if (trim(config%coupling_scheme) == 'ncs') write(*,*) "WARNING: No atom_data_suffix set for particle group ", i, "."
       endif
 
+      if (trim(sim%groups(i)%coupling_scheme) == 'ncs') then
+        if (sim%groups(i)%use_kin_recombination .and. (.not. deuterium_adas)) then
+          write(*,*) 'ERROR: use_kin_recombination requires deuterium_adas = .true.'
+          stop
+        endif
+      endif
 
       if (sim%groups(i)%use_kin_bg_collisions) then
         if ((sim%groups(i)%kin_bg_coll_type /= 'Homma2013') .and. (sim%groups(i)%kin_bg_coll_type /= 'Homma2020')) then

@@ -1,4 +1,9 @@
+! SPDX-License-Identifier: LGPL-3.0-or-later AND LicenseRef-Zhang-Jin
 !> Contains functions to calculate the fields created by the plasma current alone and by external currents
+!!
+!! Note: the `comelp` routine below is copyright (C) Shanjie Zhang and
+!! Jianming Jin, used with permission (see the licensing note at the routine
+!! and THIRD_PARTY_LICENSES.md).
 !!
 !!  * The routines B_plasma and psi_plasma calculate the plasma field given a set of (R,Z) points
 !!  * Routines to predict the best coil currents for given fixed-bnd equilibrium are also avaialable

@@ -41,7 +41,7 @@ program test_NNC
   type(type_neutral_collision), dimension(:), allocatable :: neutral_collisions
 
   integer, parameter :: n_diag=6 !< how many diagnostic fields to project
-  !< p_ii (p_RR, p_ZZ, p_\phi\phi), n_1, n (=n_1+n_2), n_2
+  !< n (=n_1+n_2), n_1, n_2, p_ii (p_RR, p_ZZ, p_\phi\phi)
 
   !parameters of the grid
   real*8, parameter :: R_0 = 100.d0, Z_0 = 0.d0, length = 1.d0
@@ -126,6 +126,8 @@ program test_NNC
 
   ! --- initialize the neutral collision action
   neutral_collisions = neutral_collisions_from_config(sim)
+  neutral_collisions(1)%each_nstep_part = nstep_particles
+  sim%tstep_part_adj = tstep_particles
 
   ! --- setting up initial particle array
   weight = particlesource/(sim%groups(1)%n_particles) !< abusing particlesource to mean total weight of all particles in the sim for easy input iterations
@@ -133,11 +135,7 @@ program test_NNC
   select type (p => sim%groups(1)%particles)
   type is (particle_kinetic_leapfrog)  
     !$omp parallel do default(none)  &
-#ifdef __GFORTRAN__
     !$omp shared(sim, rng, T_av, weight)       &
-#else
-    !$omp shared(sim, p, rng, T_av, weight)       &
-#endif
     !$omp private(i_rng, RN, R, Z, s, t, i_elm)
     do i=1,size(p)
       !$ i_rng = omp_get_thread_num()+1
@@ -217,6 +215,7 @@ program test_NNC
     call log_block(sim%my_id, trim(i_step_char), last_time)
 
     sim%time = sim%time + tstep_particles*nstep_particles
+    sim%istep_inner_loop = i_step
 
     call conservation_checks(sim,conserv_obj)
 
@@ -238,7 +237,7 @@ program test_NNC
     end if
 
     call log_block(sim%my_id, "Neutral self collision", last_time)
-    call neutral_collisions(1)%do(sim,tstep_particles*nstep_particles,projections%node_list, projections%element_list)
+    call neutral_collisions(1)%do(sim,projections%node_list, projections%element_list)
 
     ! print details of sim%particles to logfile (was used for early debugging)
     ! select type (pa => sim%groups(1)%particles)
@@ -311,11 +310,7 @@ contains
     select type (p => sim%groups(1)%particles)
     type is (particle_kinetic_leapfrog)  
       !$omp parallel do default(none)  &
-#ifdef __GFORTRAN__
       !$omp shared(sim, tstep_particles, mass, rng, nstep_particles) &
-#else
-      !$omp shared(sim, p, tstep_particles, mass, rng, nstep_particles) &
-#endif
       !$omp private(i_rng, particle_tmp, to_be_reflected, vector_normal, &
       !$omp rz_old, st_old, i_elm_old, HH, HH_s, HH_t, HZ, l, m, qty,    &
       !$omp factor, i_tor, k, ifail, RN, j) &
@@ -341,10 +336,10 @@ contains
               do m=1,n_order+1  ! order of the polynomial
                 qty = 0.d0
                 factor = HH(l,m) * sim%fields%element_list%element(i_elm_old)%size(l,m) * particle_tmp%weight / nstep_particles
-                qty(1:3)                            = factor * mass * particle_tmp%v * particle_tmp%v ! directional pressure P_ii = dp_i/dt /A = mv_i^2 dt A n /dt /A = mv_i^2 n
-                if(particle_tmp%i_life == 1) qty(4) = factor                                          ! n_1 species density [m^-3]
-                qty(5)                              = factor                                          ! n=n_1+n_2 total species density [m^-3]
-                if(particle_tmp%i_life == 2) qty(6) = factor                                          ! n_2 species density [m^-3]
+                qty(1)                              = factor                                          ! n=n_1+n_2 total species density [m^-3]
+                if(particle_tmp%i_life == 1) qty(2) = factor                                          ! n_1 species density [m^-3]
+                if(particle_tmp%i_life == 2) qty(3) = factor                                          ! n_2 species density [m^-3]
+                qty(4:6)                            = factor * mass * particle_tmp%v * particle_tmp%v ! directional pressure P_ii = dp_i/dt /A = mv_i^2 dt A n /dt /A = mv_i^2 n
                 
                 do i_tor=1,n_tor ! toroidal harmonic
                   do k=1,n_diag  ! diagnostic quantity
@@ -441,11 +436,7 @@ contains
     select type (p => sim%groups(1)%particles)
     type is (particle_kinetic_leapfrog)  
       !$omp parallel do default(none)  &
-#ifdef __GFORTRAN__
       !$omp shared(sim) &
-#else
-      !$omp shared(sim, p) &
-#endif
       !$omp private(iR, R) &
       !$omp reduction(+:w_iR)
       do i=1,size(p)
@@ -546,7 +537,7 @@ contains
       !$omp parallel do default(shared) & ! workaround for Error: �__vtab_mod_pcg32_rng_Pcg32_rng� not specified in enclosing �parallel�
 #else
       !$omp parallel do default(none) &
-      !$omp shared(sim, particles) &
+      !$omp shared(sim) &
 #endif
       !$omp reduction(+:particles_remaining, momentum_remaining, energy_remaining,superparticles_remaining)
         do j=1,size(particles,1)
@@ -599,11 +590,7 @@ contains
     select type (p => sim%groups(1)%particles)
     type is (particle_kinetic_leapfrog)  
       !$omp parallel do default(none)  &
-#ifdef __GFORTRAN__
       !$omp shared(sim) &
-#else
-      !$omp shared(p,sim) &
-#endif
       !$omp reduction(+:T_av_measured, w_tot)
       do i=1,size(p)
         T_av_measured = T_av_measured + p(i)%weight * (sim%groups(1)%mass * ATOMIC_MASS_UNIT) * dot_product(p(i)%v,p(i)%v) / (3*EL_CHG)
@@ -628,11 +615,7 @@ contains
     select type (p => sim%groups(1)%particles)
     type is (particle_kinetic_leapfrog)  
       !$omp parallel do default(none)  &
-#ifdef __GFORTRAN__
       !$omp shared(sim, rng, T_Av, weight)       &
-#else
-      !$omp shared(sim, p, rng, T_Av, weight)       &
-#endif
       !$omp private(i_rng, RN, R, Z, s, t, i_elm)
       do i=1,size(p)
         if(p(i)%x(1) < R_0) then

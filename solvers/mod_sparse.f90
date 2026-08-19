@@ -28,9 +28,12 @@ module mod_sparse
 #ifdef USE_BICGSTAB
     use mod_bicgstab, only: bicgstab_driver
 #else
-    use mod_gmres, only: gmres_driver
+    !use mod_gmres, only: gmres_driver !< Legacy gmres_driver
+    use mod_gmres2, only: gmres2_driver
 #endif
     use matio_module, only: save_mat_h5
+    use sorting_module, only : set_block_csr_permutations
+    use mpi_mod
 
     implicit none
 
@@ -68,11 +71,13 @@ module mod_sparse
 
       if (verbose) tag = 0
 
+      if (verbose) write(*,*) '****************************************'
       if (solver%equilibrium) then
-        if (verbose) write(*,*) "Solving MHD equilibrium system"
+        if (verbose) write(*,*) '*    Solving MHD equilibrium system    *'
       else
-        if (verbose) write(*,*) "Solving MHD system using direct solver"
+        if (verbose) write(*,*) '*Solving MHD system using direct solver*'
       endif
+      if (verbose) write(*,*) '****************************************'
 
       if (solver%library.eq.mumps) then
 #ifdef USE_MUMPS
@@ -103,7 +108,11 @@ module mod_sparse
 
     elseif (solver%iterative) then
 
-      if (verbose) write(*,*) "Solving MHD system using iterative solver"
+      if (verbose) then
+            write(*,*) '*********************************************'
+            write(*,*) '* Solving MHD system using iterative solver *'
+            write(*,*) '*********************************************'
+      endif
 
       if (solver%verbose) tag = my_id
 
@@ -118,6 +127,10 @@ module mod_sparse
         endif
       endif
       solver%solve_only = (solver%solve_only).or.(solver%newton%it.gt.1) ! no PC update within Newton loop
+
+      if (.not. a_mat%bcsr_mapped) then
+        call set_block_csr_permutations(a_mat)
+      endif
 
       if (.not.solver%pc%initialized) then
         call initialize_preconditioner(solver%pc,a_mat%comm)
@@ -167,11 +180,17 @@ module mod_sparse
       solver%iter_prev  = solver%iter_gmres
       solver%iter_gmres = solver%iter_max
 
+      call clck_time_barrier(t0)
+
 #ifdef USE_BICGSTAB
       call bicgstab_driver(a_mat, rhs_vec, sol_vec, solver)
 #else
-      call gmres_driver(a_mat, rhs_vec, sol_vec, solver)
+      call gmres2_driver(a_mat=a_mat,b=rhs_vec%val,x=sol_vec%val,n=sol_vec%n, solver=solver)
 #endif
+
+      call clck_time_barrier(t1)
+      call clck_ldiff(t0,t1,tsecond)
+      if (my_id .eq. 0) write(*,FMT_TIMING)  my_id, '#  Elapsed time Solve :',tsecond
 
       if (verbose) write(*,'(A32,I5)') 'Number of iterations: ', solver%iter_gmres
 

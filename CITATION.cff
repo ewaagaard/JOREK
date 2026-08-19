@@ -307,9 +307,8 @@ authors:
   - family-names: "Wieschollek"
     given-names: "F"
     orcid: "0000-0002-6111-543X"
-repository-code: "<<<<<<<<URL to repository coming soon>>>>>>>>>>>"
+repository-code: "https://github.com/iterorganization/JOREK"
 license: "LGPL-3.0-or-later"
-doi: "<<<<<<<<<DOI coming soon>>>>>>>>>>"  # Zenodo DOI for releases
 url: "https://www.jorek.eu"
 references:
   - title: "MHD stability in X-point geometry: simulation of ELMs"

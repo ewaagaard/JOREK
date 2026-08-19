@@ -31,7 +31,7 @@ use mod_basisfunctions
 use nodes_elements
 use constants,   only: MU_ZERO, ATOMIC_MASS_UNIT, K_BOLTZ, EL_CHG
 use mod_particle_wall_interaction
-use mod_neutral_collision, only: neutral_collisions_from_config, type_neutral_collision
+use mod_neutral_collision, only: neutral_collisions_from_config, type_neutral_collision, gcd_neutral_collisions
 use mod_projection_functions, only: proj_f_combined_density, proj_f_combined_energy, proj_f_combined_par_momentum
 use mod_particle_puffing
 use mod_edge_domain
@@ -43,6 +43,7 @@ use mod_coupling_settings, only: use_kin_recomb_global
 use mod_initialise_particles
 use equil_info
 use mod_output_file_routines, only: write_to_outputfile
+use mod_neutral_density, only: get_neutral_density
 use mod_impurity,        only: init_imp_adas
 #if STELLARATOR_MODEL
 use mod_equations, only: init_eq_struct
@@ -70,10 +71,11 @@ implicit none
 
 type(event)                                       :: fieldreader, partreader
 type(event)                                       :: gas_puff_event, gas_puff2_event
-type(event), target                               :: project_jorek_feedback, jorek_stepper_event
+type(event), target                               :: project_jorek_feedback, jorek_stepper_event, project_neutral_density
 type(pcg32_rng), dimension(:), allocatable        :: rng
 type(count_action)                                :: counter
 type(projection), target                          :: jorek_feedback
+type(projection), target                          :: neutral_density_proj
 type(jorek_timestep_action), target               :: jorek_stepper
 type(type_edge_domain), allocatable, dimension(:) :: edge_domains
 type(edge_elements)                               :: edge_elm_template
@@ -253,6 +255,18 @@ jorek_stepper = new_jorek_timestep_action(jorek_feedback%node_list)
 project_jorek_feedback = new_event_ptr(jorek_feedback,   start = sim%time)
 jorek_stepper_event    = new_event_ptr(jorek_stepper,    start = sim%time)
 
+! setting up projection for neutral density
+if(size(neutral_collisions) > 0) then
+  neutral_density_proj = new_projection(sim%fields%node_list, sim%fields%element_list, &
+                                  filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0=filter_par_n0,            &
+                                  filter = filter_perp, filter_hyper = filter_hyper, filter_parallel=filter_par, fractional_digits = 9,       &
+                                  do_zonal = .false., calc_integrals=.false., to_vtk=.false., to_h5 = .false., basename='projections', nsub=2, &
+                                  do_dirichlet=apply_dirichlet_proj)
+
+  ! define feedback size dependent on the number of variables required for coupling
+  allocate(neutral_density_proj%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, 1))
+endif
+
 !if no %each_nstep_part was set, the least common multiple of all %each_nstep_part is 1 (meaning all particle-particle actions will happen only once each fluid timestep)
 if(sim%lcm_inner_loop == -9999991) sim%lcm_inner_loop = 1
 
@@ -276,7 +290,6 @@ do while (.not. sim%stop_now)
     write(*,*) "sim%time       : ",sim%time
     write(*,*) "tstep_fluid_si : ",sim%tstep_fluid_si
   endif
-
 
   ! --- Interactions that happen on the fluid timestep (creating kinetic particles)
 
@@ -379,6 +392,19 @@ do while (.not. sim%stop_now)
         call wall_act_groups(i)%do(sim,.true.)
       enddo
     endif
+  
+    !neutral self collisions, which need the projected neutral density
+    if (size(neutral_collisions) > 0 .and. (mod(istep_inner_loop,gcd_neutral_collisions)==0 .or. last_step)) then
+      call write_to_outputfile(sim, "Neutral self collisions")
+  
+      ! update the neutral density which are necessary for the neutral collisions
+      call get_neutral_density(sim,neutral_density_proj)
+
+      ! do the neutral collisions
+      do i=1, size(neutral_collisions)
+        call neutral_collisions(i)%do(sim,neutral_density_proj%node_list,neutral_density_proj%element_list)
+      enddo
+    endif
     
   enddo ! inner particle loop
   sim%istep_inner_loop=-1 ! set to -1 to notify that sim is outside of inner particle loop
@@ -398,14 +424,6 @@ do while (.not. sim%stop_now)
   
 
   ! -- Finalising the fluid timestep
-
-  !neutral self collisions, which need the projected neutral density
-  if (size(neutral_collisions) > 0) then
-    call write_to_outputfile(sim, "Neutral self collisions")
-    do i=1, size(neutral_collisions)
-      call neutral_collisions(i)%do(sim,sim%tstep_fluid_si,jorek_feedback%node_list,jorek_feedback%element_list)
-    enddo
-  endif
   
   !Writing interim particle restart files every nout fluid steps done. Overwrites previous restart file to save space
   if ( nout_particles .eq. 9999999 ) then

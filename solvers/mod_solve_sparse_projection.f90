@@ -15,11 +15,6 @@ module mod_solve_sparse_projection
 #ifdef USE_STRUMPACK
       use mod_strumpack, only: spk_delete_factors
 #endif
-#ifdef USE_BICGSTAB
-      use mod_bicgstab, only: bicgstab_driver
-#else
-      use mod_gmres, only: gmres_driver
-#endif
     use matio_module, only: save_mat_h5
 
     implicit none

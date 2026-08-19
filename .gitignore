@@ -17,6 +17,8 @@
 *.pyc
 *.xml
 *.png
+# ...but keep PNGs that are part of the documentation site (docs/ is the Jekyll root)
+!docs/**/*.png
 *.csv
 Makefile.inc
 *.optrpt
@@ -88,3 +90,23 @@ jorek2_fields_xyz
 jorek2_wall_forces
 kinetic_main
 recombination_*
+
+# backup / editor files
+*~
+*.orig
+*.rej
+
+# Jekyll build output — rebuilt by CI on every push
+_site/
+
+# Jekyll cache and incremental build metadata
+.jekyll-cache/
+.jekyll-metadata
+
+# Bundler local install directory (if anyone runs: bundle install --path vendor)
+vendor/
+.bundle/
+
+# macOS
+.DS_Store
+Gemfile.lock
