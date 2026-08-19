@@ -175,13 +175,13 @@ subroutine finalize_boundary_ndotB()
   use mpi
   use nodes_elements
   use mod_parameters, only: n_period
+  use constants, only: PI
   use corr_neg, only: corr_neg_temp, dcorr_neg_temp_dT
   use phys_module, only: vpar_sbc_alpha0, vpar_sbc_strength, vpar_sbc_smooth_sign, &
                          vpar_sbc_angle_scale, T_1, GAMMA, ndotB_evolving, loop_voltage, &
                          sbc_use_local_T, vpar_sbc_enable, vpar_sbc_T_floor
   use mod_model_settings, only: var_T, var_Vpar
   implicit none
-  real*8, parameter :: pi = 3.14159265358979d0
   integer :: i, mp, in, n_with_data, ierr, my_id
   real*8 :: ndotB_sum, ndotB_avg, ndotB_min, ndotB_max
   real*8 :: phi, ndotB_val, cos_n, sin_n
@@ -260,7 +260,7 @@ subroutine finalize_boundary_ndotB()
   vpar_target_dT_fourier_cos = 0.d0
   vpar_target_dT_fourier_sin = 0.d0
   
-  alpha0_rad = vpar_sbc_alpha0 * pi / 180.d0
+  alpha0_rad = vpar_sbc_alpha0 * PI / 180.d0
 
   do i = 1, n_nodes_stored
 
@@ -282,8 +282,8 @@ subroutine finalize_boundary_ndotB()
 
     do in = 1, n_tor_stored
       do mp = 1, n_plane_stored
-        ! Mode in=2 has n_period oscillations over 2pi (one per field period) -- lowest stellarator mode.
-        phi = 2.d0 * pi * dble(mp-1) / dble(n_plane_stored * n_period)
+        ! Mode in=2 has n_period oscillations over 2PI (one per field period) -- lowest stellarator mode.
+        phi = 2.d0 * PI * dble(mp-1) / dble(n_plane_stored * n_period)
         ndotB_val = ndotB_per_node_plane(i, mp)
         
         ! Compute vpar_target in physical space

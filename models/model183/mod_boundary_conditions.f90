@@ -78,7 +78,6 @@ contains
     real*8                :: vpar_target, vpar_current, delta_vpar
     real*8                :: ndotB_norm, T_local
     real*8                :: cs, alpha_rad, alpha0_rad, factor_sbc
-    real*8, parameter     :: pi = 3.14159265358979d0
 
     zbig = 1.d12
        do i=1, n_local_elms
