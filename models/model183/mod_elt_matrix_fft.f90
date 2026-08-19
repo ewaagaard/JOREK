@@ -342,6 +342,8 @@ do ms=1, n_gauss
       eq( var_D_par,0,0,0,:) = D_par                       ! D_par
 
       eq(var_S_rho,0,0,0,:) = particle_source(mp,ms,mt)   ! S_rho
+      eq(var_aux_E0,0,0,0,:) = 0.d0
+      if (use_ncs .or. use_ics) eq(var_aux_E0,0,0,0,:) = eq_aux_g(mp, E_idx_kin, ms, mt)
       eq(  var_S_j,0,0,0,:) = current_source(mp,ms,mt)/F0 ! S_j
 
       ! Poloidal momentum source based on artificial ExB flow - note only first order derivatives are implemented
@@ -637,15 +639,15 @@ do ms=1, n_gauss
           call get_rhs(rhs_ij, eq)
            
             ! kinetics extension - only impurities for now
-             if (use_ncs .or. use_ics) then
-              aux_E0 = eq_aux_g(mp, E_idx_kin, ms, mt)
+            ! if (use_ncs .or. use_ics) then
+              ! aux_E0 = eq_aux_g(mp, E_idx_kin, ms, mt)
               ! aux_mom_par0 = eq_aux_g(mp, mom_par_idx_kin,  ms, mt) 
               ! vpar0        = eq_g(mp, var_Vpar, ms, mt)
 
-              rhs_ij(var_T, 1) = rhs_ij(var_T, 1) &
-                                 + eq(var_v,0,0,0,1) * aux_E0 * tstep ! &
-            !                     ! - (gamma-1.d0) * eq(var_v,0,0,0,1) * aux_mom_par0 * vpar0 * tstep 
-            endif
+              ! rhs_ij(var_T, 1) = rhs_ij(var_T, 1) &
+              !                   + eq(var_v,0,0,0,1) * aux_E0 * tstep ! &
+              !                     ! - (gamma-1.d0) * eq(var_v,0,0,0,1) * aux_mom_par0 * vpar0 * tstep 
+            ! endif
 
            ! Add Jacobian pre-factor to contributions
            do i_var=1,n_var
