@@ -62,7 +62,6 @@ real*8     :: rho0, rho0_s, rho0_ss
 real*8     :: T0_i, T0_i_s, T0_i_ss
 real*8     :: T0_e, T0_e_s, T0_e_ss
 real*8     :: BigR_x, vv2, eta_T, visco_T, deta_dT, d2eta_d2T, dvisco_dT
-real*8     :: aux_E0, aux_mom_par0, vpar0
 real*8     :: theta, zeta, reta
 logical    :: xpoint2, use_fft
 
