@@ -59,7 +59,9 @@ module mod_equations
   integer, parameter  :: var_Bv2         = 2*n_var+36
   integer, parameter  :: var_B2          = 2*n_var+37
   integer, parameter  :: var_zero        = 2*n_var+38
-  integer, parameter  :: var_aux_E0      = 2*n_var+39   ! kinetic energy source (from particle feedback)
+  integer, parameter  :: var_aux_E0      = 2*n_var+39   ! kinetic energy source from particle feedback
+  integer, parameter  :: var_aux_mom_par0 = 2*n_var+40  ! momentum source from particle feedback
+  integer, parameter  :: var_aux_rho0     = 2*n_var+41  ! density source from particle feedback
 
   ! Variables at current time step
   type(algexpr), parameter, private :: Psi0       = algexpr(basic=.true.,var=var_Psi)
@@ -121,7 +123,9 @@ module mod_equations
   type(algexpr), parameter, private :: k_perp_i    = algexpr(basic=.true.,var=var_k_perp_i   )
   type(algexpr), parameter, private :: k_perp_e    = algexpr(basic=.true.,var=var_k_perp_e   )
   type(algexpr), parameter, private :: S_e         = algexpr(basic=.true.,var=var_S_e        )
-  type(algexpr), parameter, private :: aux_E0      = algexpr(basic=.true.,var=var_aux_E0    )
+  type(algexpr), parameter, private :: aux_E0      = algexpr(basic=.true.,var=var_aux_E0     )
+  type(algexpr), parameter, private :: aux_mom_par0 = algexpr(basic=.true., var=var_aux_mom_par0)
+  type(algexpr), parameter, private :: aux_rho0     = algexpr(basic=.true., var=var_aux_rho0 )
   type(algexpr), parameter, private :: S_e_i       = algexpr(basic=.true.,var=var_S_e_i      )
   type(algexpr), parameter, private :: S_e_e       = algexpr(basic=.true.,var=var_S_e_e      )
   type(algexpr), parameter, private :: S_phi_pol   = algexpr(basic=.true.,var=var_S_phi_pol  )
@@ -467,8 +471,6 @@ module mod_equations
                                         - tstep*theta*v*reta*deta_dT*T*Bv2*zj0*zj0                            ! ohmic heating
     end if
 
-    rhs_semianalytic(var_T) = rhs_semianalytic(var_T) + tstep*v*aux_E0 ! kinetic energy coupling
-
     !###################################################################################################
     !#  Parallel Momentum Equation                                                                     #
     !#                                                                                                 #
@@ -552,6 +554,38 @@ module mod_equations
       end if 
     endif
 
+    !###################################################################################################
+    !#  Kinetic Particle Coupling (NCS/ICS aux_* source terms)                                         #    
+    !#                                                                                                 #
+    !#  Density (conservative): bare S_rho.                        NCS only — aux_rho0=0 for ICS.      #
+    !#  Parallel momentum (conservative): bare S_v, no -v*S_rho correction.                            #
+    !#  Pressure/T (non-conservative): need FULL correction --> S_E + (-v.S_v) + (1/2 v^2 S_rho).      #
+    !###################################################################################################
+
+    rhs_semianalytic(var_rho) = rhs_semianalytic(var_rho) + tstep*v*aux_rho0
+    rhs_semianalytic(var_T)   = rhs_semianalytic(var_T)   + tstep*v*aux_E0
+
+    if (with_vpar) then
+
+      ! RHS vpar additions
+      rhs_semianalytic(var_vpar) = rhs_semianalytic(var_vpar) + tstep*v*aux_mom_par0 ! momentum source to momentum equation
+
+      rhs_semianalytic(var_T) = rhs_semianalytic(var_T)                               & 
+                              - tstep*(gamma-1.d0)*v*aux_mom_par0*vpar0               & ! momentum source to pressure equation
+                              + tstep*(gamma-1.d0)*0.5d0*v*aux_rho0*(v2 + vpar2)        ! mass source to pressure equation 
+
+      ! LHS entries due to vpar parametric dependence: theta * d(RHS(i))/dx_j. Partial derivatives already computed above
+      amat_semianalytic(var_T,var_vpar) = amat_semianalytic(var_T,var_vpar)                      &
+                                        + tstep*theta*(gamma-1.d0)*v*aux_mom_par0*vpar           &
+                                        - tstep*theta*(gamma-1.d0)*0.5d0*v*aux_rho0*vpar2_vpar
+
+      amat_semianalytic(var_T,var_Psi) = amat_semianalytic(var_T,var_Psi)                        &
+                                       - tstep*theta*(gamma-1.d0)*0.5d0*v*aux_rho0*vpar2_Psi
+
+      amat_semianalytic(var_T,var_Phi) = amat_semianalytic(var_T,var_Phi)                        &
+                                       - tstep*theta*(gamma-1.d0)*0.5d0*v*aux_rho0*v2_Phi
+    endif
+
     ! Expansion of differential operators
     do i_var = 1, n_var
       if ((associated(rhs_semianalytic(i_var)%operand1)) .and. (associated(rhs_semianalytic(i_var)%operand2))) then
@@ -574,7 +608,7 @@ module mod_equations
     if (.not. allocated(thread_eq)) then
       allocate(thread_eq(nbthreads))
       do i=1,nbthreads
-        allocate(thread_eq(i)%eq(2*n_var+39,0:n_order-1,0:n_order-1,0:n_order-1,4))
+        allocate(thread_eq(i)%eq(2*n_var+41,0:n_order-1,0:n_order-1,0:n_order-1,4))
       end do
     end if
   end subroutine init_eq_struct

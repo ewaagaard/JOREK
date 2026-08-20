@@ -342,9 +342,18 @@ do ms=1, n_gauss
       eq( var_D_par,0,0,0,:) = D_par                       ! D_par
 
       eq(var_S_rho,0,0,0,:) = particle_source(mp,ms,mt)   ! S_rho
+      eq(  var_S_j,0,0,0,:) = current_source(mp,ms,mt)/F0 ! S_j
+
+      ! ############ Kinetics Particle Coupling source terms ############
       eq(var_aux_E0,0,0,0,:) = 0.d0
       if (use_ncs .or. use_ics) eq(var_aux_E0,0,0,0,:) = eq_aux_g(mp, E_idx_kin, ms, mt)
-      eq(  var_S_j,0,0,0,:) = current_source(mp,ms,mt)/F0 ! S_j
+
+      eq(var_aux_mom_par0,0,0,0,:) = 0.d0
+      if (use_ncs .or. use_ics) eq(var_aux_mom_par0,0,0,0,:) = eq_aux_g(mp, mom_par_idx_kin, ms, mt)
+
+      eq(var_aux_rho0,0,0,0,:) = 0.d0
+      if (use_ncs) eq(var_aux_rho0,0,0,0,:) = eq_aux_g(mp, rho_idx_kin, ms, mt) ! only for neutral coupling scheme
+      ! ##################################################################
 
       ! Poloidal momentum source based on artificial ExB flow - note only first order derivatives are implemented
       call potential_source(xpoint2, xcase2, y_g(mp,ms,mt), Z_xpoint, psi_norm, 0.0, 1.0, phi_source, dPhi_source_dpsi,dummy1,dPhi_source_dpsi2,dummy2,dummy3,dummy4,dummy5,dummy6)
