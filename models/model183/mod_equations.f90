@@ -571,10 +571,15 @@ module mod_equations
       rhs_semianalytic(var_vpar) = rhs_semianalytic(var_vpar) + tstep*v*aux_mom_par0 ! momentum source to momentum equation
 
       rhs_semianalytic(var_T) = rhs_semianalytic(var_T)                               & 
-                              - tstep*(gamma-1.d0)*v*aux_mom_par0*vpar0               & ! momentum source to pressure equation
-                              + tstep*(gamma-1.d0)*0.5d0*v*aux_rho0*(v2 + vpar2)        ! mass source to pressure equation 
+                              - tstep*(gamma-1.d0)*v*aux_mom_par0*vpar0               ! momentum source to pressure equation
+      #if INCLUDE_ADDITIONAL_TERMS
+        rhs_semianalytic(var_T) = rhs_semianalytic(var_T) + tstep*(gamma-1.d0)*0.5d0*v*aux_rho0*v2          ! v2 alone is the total vsquared needed here
+      #else
+        rhs_semianalytic(var_T) = rhs_semianalytic(var_T) + tstep*(gamma-1.d0)*0.5d0*v*aux_rho0*(v2 + vpar2) ! mass source to pressure equation. disjoint pieces, sum needed
+      #endif
 
       ! LHS entries due to vpar parametric dependence: theta * d(RHS(i))/dx_j. Partial derivatives already computed above
+      ! note: vpar2_Psi/v2_Phi/vpar2_vpar already computed and automatically equal, so no branching for these amat entries below 
       amat_semianalytic(var_T,var_vpar) = amat_semianalytic(var_T,var_vpar)                      &
                                         + tstep*theta*(gamma-1.d0)*v*aux_mom_par0*vpar           &
                                         - tstep*theta*(gamma-1.d0)*0.5d0*v*aux_rho0*vpar2_vpar
