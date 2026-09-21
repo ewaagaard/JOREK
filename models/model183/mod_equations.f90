@@ -170,7 +170,7 @@ module mod_equations
     use phys_module, only: time_evol_zeta, time_evol_theta, Igamma => gamma, Itstep => tstep, Ivisco_num => visco_num,    &
                            Ivisco_par => visco_par, Ivisco_par_par => visco_par_par, Ivisco_par_num => visco_par_num,     &
                            Ieta_num => eta_num, ID_perp_num => D_perp_num, zk_perp_num,  &
-                           Ieta => eta, eta_ohmic, Inu_phi_source => nu_phi_source
+                           Ieta => eta, eta_ohmic, Inu_phi_source => nu_phi_source, freeze_psi_dynamics
     implicit none
     
     integer  :: i, i_var, j_var
