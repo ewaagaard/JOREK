@@ -588,6 +588,14 @@ module mod_equations
       !                                 - tstep*theta*(gamma-1.d0)*0.5d0*v*aux_rho0*v2_Phi  ! REMOVE - no Phi-dependence once v2 (ExB term) is dropped
     endif
 
+    if (freeze_psi_dynamics) then
+      rhs_semianalytic(var_Psi) = zero            ! forces the weak residual to zero
+      do j_var = 1, n_var
+        amat_semianalytic(var_Psi, j_var) = zero  ! decouple from every other variable
+      end do
+      amat_semianalytic(var_Psi, var_Psi) = v*Psi ! pure mass-matrix diagonal block
+    endif
+
     ! Expansion of differential operators
     do i_var = 1, n_var
       if ((associated(rhs_semianalytic(i_var)%operand1)) .and. (associated(rhs_semianalytic(i_var)%operand2))) then
