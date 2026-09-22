@@ -208,7 +208,7 @@ real*8  :: R0_M=5.90d0, RBOT_M=0.6525d0, ZBOT_M=0.25d0, RTOP_M=0.53d0, ZTOP_M=0.
 real*8  :: RTAR_ADD_M=0.08d0, PHI_ROT_DEG=36.0d0, PHI_PERIOD_DEG=72.0d0, PHI_OFFSET_DEG=36.0d0
 
 ! --- Tracing control
-real*8  :: L_CAP = 600.d0
+real*8  :: L_CAP = 1000.d0 ! similar to Sergei Makarovs values in Hagrids
 integer :: N_PHI_PER_TURN = 360
 
 namelist /connlen_params/ use_target, R0_M, RBOT_M, ZBOT_M, RTOP_M, ZTOP_M, RTAR_ADD_M, &
