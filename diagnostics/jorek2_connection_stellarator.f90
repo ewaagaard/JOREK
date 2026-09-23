@@ -295,9 +295,10 @@ write(*,'(A,i8,A)') ' Tracing ', n_lines, ' points...'
 !$omp parallel default(none) &
 !$omp   shared(n_lines, R_start, Z_start, P_start, n_turn, delta_phi_base, L_fwd, L_bwd, status_fwd, status_bwd, &
 !$omp          node_list, element_list, use_target, L_CAP, N_PHI_PER_TURN, &
-!$omp          R0_M, RBOT_M, ZBOT_M, RTOP_M, ZTOP_M, RTAR_ADD_M, PHI_ROT_DEG, PHI_PERIOD_DEG, PHI_OFFSET_DEG) &
+!$omp          R0_M, RBOT_M, ZBOT_M, RTOP_M, ZTOP_M, RTAR_ADD_M, PHI_ROT_DEG, PHI_PERIOD_DEG, PHI_OFFSET_DEG, &
+!$omp          R_MINOR_MIN, R_MINOR_MAX) &
 !$omp   private(i_lines, dir, i_elm, s_line, t_line, p_line, ifail, checked_elms, L_acc, &
-!$omp           i_turn, i_phi, delta_phi_macro, R_now, Z_now, R_MINOR_MIN, R_MINOR_MAX, R_before, Z_before, R_mid, Z_mid, r_minor_now, p_before)
+!$omp           i_turn, i_phi, delta_phi_macro, R_now, Z_now, R_before, Z_before, R_mid, Z_mid, r_minor_now, p_before)
 !$omp do schedule(dynamic)
 L_LINES: do i_lines = 1, n_lines
 
