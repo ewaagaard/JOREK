@@ -211,8 +211,10 @@ real*8  :: RTAR_ADD_M=0.08d0, PHI_ROT_DEG=36.0d0, PHI_PERIOD_DEG=72.0d0, PHI_OFF
 real*8  :: L_CAP = 1000.d0 ! similar to Sergei Makarovs values in Hagrids
 integer :: N_PHI_PER_TURN = 360
 
+real*8  :: R_MINOR_MIN = 0.2821d0, R_MINOR_MAX = 0.7484d0
 namelist /connlen_params/ use_target, R0_M, RBOT_M, ZBOT_M, RTOP_M, ZTOP_M, RTAR_ADD_M, &
-                          PHI_ROT_DEG, PHI_PERIOD_DEG, PHI_OFFSET_DEG, L_CAP, N_PHI_PER_TURN
+                          PHI_ROT_DEG, PHI_PERIOD_DEG, PHI_OFFSET_DEG, L_CAP, N_PHI_PER_TURN, &
+                          R_MINOR_MIN, R_MINOR_MAX
 
 character(len=512) :: s
 integer :: my_id, n_lines, i_lines, i, j, iside_i, iside_j, curr, nr, ntour, ierr
@@ -225,6 +227,8 @@ integer, allocatable :: status_fwd(:), status_bwd(:)
 
 integer :: i_elm, ifail, checked_elms, dir, i_turn, i_phi
 real*8  :: s_line, t_line, p_line, R_now, Z_now, delta_phi_base, delta_phi_macro, L_acc
+real*8  :: R_before, Z_before, R_mid, Z_mid
+real*8 :: r_minor_now, p_before
 
 write(*,*) '***************************************'
 write(*,*) '* JOREK2_connection_stellarator       *'
@@ -293,7 +297,7 @@ write(*,'(A,i8,A)') ' Tracing ', n_lines, ' points...'
 !$omp          node_list, element_list, use_target, L_CAP, N_PHI_PER_TURN, &
 !$omp          R0_M, RBOT_M, ZBOT_M, RTOP_M, ZTOP_M, RTAR_ADD_M, PHI_ROT_DEG, PHI_PERIOD_DEG, PHI_OFFSET_DEG) &
 !$omp   private(i_lines, dir, i_elm, s_line, t_line, p_line, ifail, checked_elms, L_acc, &
-!$omp           i_turn, i_phi, delta_phi_macro, R_now, Z_now)
+!$omp           i_turn, i_phi, delta_phi_macro, R_now, Z_now, R_MINOR_MIN, R_MINOR_MAX, R_before, Z_before, R_mid, Z_mid, r_minor_now, p_before)
 !$omp do schedule(dynamic)
 L_LINES: do i_lines = 1, n_lines
 
@@ -325,9 +329,16 @@ L_LINES: do i_lines = 1, n_lines
       do i_phi = 1, N_PHI_PER_TURN
 
         delta_phi_macro = dir * delta_phi_base
+
+        ! save pre-step position for the mid-segment tunneling check
+        p_before = p_line
+        call interp_RZP(node_list, element_list, i_elm, s_line, t_line, p_line, R_before, Z_before)
+
         call advance_one_step(i_elm, s_line, t_line, p_line, delta_phi_macro, L_acc, ifail)
 
         if (ifail /= 0) then
+          ! left the mesh entirely -- generic strike condition, checked first,
+          ! before any target test (matches the ordering already used elsewhere)
           if (dir==1) then; L_fwd(i_lines)=L_acc; status_fwd(i_lines)=2
           else; L_bwd(i_lines)=L_acc; status_bwd(i_lines)=2; end if
           exit L_TURNS
@@ -335,12 +346,29 @@ L_LINES: do i_lines = 1, n_lines
 
         if (use_target) then
           call interp_RZP(node_list, element_list, i_elm, s_line, t_line, p_line, R_now, Z_now)
-          if (target_hit(R_now, Z_now, p_line, R0_M, RBOT_M, ZBOT_M, RTOP_M, ZTOP_M, &
-                         RTAR_ADD_M, PHI_ROT_DEG, PHI_PERIOD_DEG, PHI_OFFSET_DEG)) then
+          R_mid = 0.5d0*(R_before + R_now)
+          Z_mid = 0.5d0*(Z_before + Z_now)
+
+          ! fixed: R_before is tested at p_before (its own phi), not p_line (post-step);
+          ! mid-point tested at the averaged phi -- removes the small p_line/position
+          if ( target_hit(R_before, Z_before, p_before, R0_M, RBOT_M, ZBOT_M, RTOP_M, ZTOP_M, &
+                          RTAR_ADD_M, PHI_ROT_DEG, PHI_PERIOD_DEG, PHI_OFFSET_DEG) .or. &
+               target_hit(R_mid,    Z_mid,    0.5d0*(p_before+p_line), R0_M, RBOT_M, ZBOT_M, RTOP_M, ZTOP_M, &
+                          RTAR_ADD_M, PHI_ROT_DEG, PHI_PERIOD_DEG, PHI_OFFSET_DEG) .or. &
+               target_hit(R_now,    Z_now,    p_line, R0_M, RBOT_M, ZBOT_M, RTOP_M, ZTOP_M, &
+                          RTAR_ADD_M, PHI_ROT_DEG, PHI_PERIOD_DEG, PHI_OFFSET_DEG) ) then
             if (dir==1) then; L_fwd(i_lines)=L_acc; status_fwd(i_lines)=1
             else; L_bwd(i_lines)=L_acc; status_bwd(i_lines)=1; end if
             exit L_TURNS
           end if
+        end if
+        
+        ! minor-radius domain-validity check
+        r_minor_now = sqrt((R_now-R0_M)**2 + Z_now**2)
+        if ( (r_minor_now > R_MINOR_MAX) .or. (r_minor_now < R_MINOR_MIN) ) then
+          if (dir==1) then; L_fwd(i_lines)=L_acc; status_fwd(i_lines)=3
+          else; L_bwd(i_lines)=L_acc; status_bwd(i_lines)=3; end if
+          exit L_TURNS
         end if
 
         if (L_acc > L_CAP) then
@@ -360,7 +388,7 @@ end do L_LINES
 
 open(31, file='connection_length.dat', status='replace')
 write(31,'(A)') '# i  R_start  Z_start  phi_start  L_fwd  status_fwd  L_bwd  status_bwd  L_total'
-write(31,'(A)') '# status: 1=analytic target, 2=mesh boundary, 0=capped(confined), -1=error'
+write(31,'(A)') '# status: 1=analytic target, 2=mesh boundary, 0=capped(confined), -1=error, 3=left valid r-domain'
 do i_lines = 1, n_lines
   write(31,'(i8,3e16.7,e16.7,i4,e16.7,i4,e16.7)') i_lines, R_start(i_lines), Z_start(i_lines), P_start(i_lines), &
         L_fwd(i_lines), status_fwd(i_lines), L_bwd(i_lines), status_bwd(i_lines), &
@@ -371,7 +399,9 @@ close(31)
 write(*,*) 'Done.  hit_target(f/b)=', count(status_fwd==1), count(status_bwd==1), &
           '  hit_boundary(f/b)=', count(status_fwd==2), count(status_bwd==2), &
           '  capped(f/b)=', count(status_fwd==0), count(status_bwd==0), &
-          '  errors(f/b)=', count(status_fwd==-1), count(status_bwd==-1)
+          '  errors(f/b)=', count(status_fwd==-1), count(status_bwd==-1), &
+          '  domain_escape(f/b)=', count(status_fwd==3), count(status_bwd==3)
+          
 
 contains
 
