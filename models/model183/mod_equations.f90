@@ -594,6 +594,15 @@ module mod_equations
         amat_semianalytic(var_Psi, j_var) = zero  ! decouple from every other variable
       end do
       amat_semianalytic(var_Psi, var_Psi) = v*Psi ! pure mass-matrix diagonal block
+
+
+    ! Also freeze zj - -- its own "definition" equation otherwise relaxes
+    ! it toward the Psi=0-implied null current, not the true imported current
+      rhs_semianalytic(var_zj) = zero
+      do j_var = 1, n_var
+        amat_semianalytic(var_zj, j_var) = zero
+      end do
+      amat_semianalytic(var_zj, var_zj) = v*zj
     endif
 
     ! Expansion of differential operators
