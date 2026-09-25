@@ -1058,7 +1058,7 @@ subroutine get_rhs(rhs_ij, eq)
 
   real*8, dimension(n_var,4), intent(inout)       :: rhs_ij
   real*8, dimension(:,:,:,:,:), pointer, intent(in) :: eq
-  real*8     :: theta, zeta, reta
+  real*8     :: theta, zeta, reta, freeze_flag ! whether to freeze Psi (magnetic evolution)
   
   ! --- Take time evolution parameters from phys_module
   theta = time_evol_theta
@@ -1069,6 +1069,8 @@ subroutine get_rhs(rhs_ij, eq)
   else
     reta = 0.d0
   end if
+
+  freeze_flag = merge(1.d0, 0.d0, freeze_psi_dynamics)
   
 #include "rhs_automatic.h"
 end subroutine
@@ -1084,7 +1086,7 @@ subroutine get_amat(amat_ij, eq)
 
   real*8, dimension(n_var,n_var,4), intent(inout) :: amat_ij
   real*8, dimension(:,:,:,:,:), pointer, intent(in) :: eq
-  real*8     :: theta, zeta, reta
+  real*8     :: theta, zeta, reta, freeze_flag
   
   ! --- Take time evolution parameters from phys_module
   theta = time_evol_theta
@@ -1095,6 +1097,8 @@ subroutine get_amat(amat_ij, eq)
   else
     reta = 0.d0
   end if
+
+  freeze_flag = merge(1.d0, 0.d0, freeze_psi_dynamics)
   
 #include "amat_automatic.h"
 end subroutine

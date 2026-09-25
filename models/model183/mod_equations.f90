@@ -150,7 +150,8 @@ module mod_equations
 
   type(const), private :: tstep, zeta, theta 
   type(const), private :: visco_num, visco_par, visco_par_par, visco_par_num, nu_phi_source, eta_num, D_perp_num, k_perp_num, gamma, reta
-  
+  type(const), private :: freeze_flag ! to freeze equations correctly, also in rhs_automatic.h
+
   type(algexpr), public  :: rhs_semianalytic(n_var)
   type(algexpr), public  :: amat_semianalytic(n_var, n_var)
   type(algexpr), private :: a_Bv2, a_B2
@@ -196,6 +197,7 @@ module mod_equations
     D_perp_num       = const(value = ID_perp_num,       token = "D_perp_num"   )
     k_perp_num       = const(value = zk_perp_num,       token = "zk_perp_num"  )
     gamma            = const(value = Igamma,            token = "gamma"        )
+    freeze_flag      = const(value = 1.d0,              token = "freeze_flag"  )
     if (Ieta .ne. 0.d0) then
       reta           = const(value = eta_ohmic/Ieta,  token = "reta")
     else
@@ -588,22 +590,22 @@ module mod_equations
       !                                 - tstep*theta*(gamma-1.d0)*0.5d0*v*aux_rho0*v2_Phi  ! REMOVE - no Phi-dependence once v2 (ExB term) is dropped
     endif
 
-    if (freeze_psi_dynamics) then
-      rhs_semianalytic(var_Psi) = zero            ! forces the weak residual to zero
-      do j_var = 1, n_var
-        amat_semianalytic(var_Psi, j_var) = zero  ! decouple from every other variable
-      end do
-      amat_semianalytic(var_Psi, var_Psi) = v*Psi ! pure mass-matrix diagonal block
+    ! decide whether to freeze Psi through flag
+    rhs_semianalytic(var_Psi) = rhs_semianalytic(var_Psi) * (1.d0 - freeze_flag)
+    do j_var = 1, n_var
+      amat_semianalytic(var_Psi, j_var) = amat_semianalytic(var_Psi, j_var) * (1.d0 - freeze_flag)
+    end do
+    amat_semianalytic(var_Psi, var_Psi) = amat_semianalytic(var_Psi, var_Psi) + freeze_flag * v * Psi ! pure mass-matrix diagonal block
 
 
     ! Also freeze zj - -- its own "definition" equation otherwise relaxes
     ! it toward the Psi=0-implied null current, not the true imported current
-      rhs_semianalytic(var_zj) = zero
-      do j_var = 1, n_var
-        amat_semianalytic(var_zj, j_var) = zero
-      end do
-      amat_semianalytic(var_zj, var_zj) = v*zj
-    endif
+    !  rhs_semianalytic(var_zj) = zero
+    !  do j_var = 1, n_var
+    !    amat_semianalytic(var_zj, j_var) = zero
+    !  end do
+    !  amat_semianalytic(var_zj, var_zj) = v*zj
+    ! endif
 
     ! Expansion of differential operators
     do i_var = 1, n_var
