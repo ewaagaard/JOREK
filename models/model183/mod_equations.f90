@@ -62,7 +62,6 @@ module mod_equations
   integer, parameter  :: var_aux_E0      = 2*n_var+39   ! kinetic energy source from particle feedback
   integer, parameter  :: var_aux_mom_par0 = 2*n_var+40  ! momentum source from particle feedback
   integer, parameter  :: var_aux_rho0     = 2*n_var+41  ! density source from particle feedback
-  integer, parameter  :: var_core_freeze  = 2*n_var+42  ! freeze density at the core 
 
   ! Variables at current time step
   type(algexpr), parameter, private :: Psi0       = algexpr(basic=.true.,var=var_Psi)
@@ -152,7 +151,7 @@ module mod_equations
   type(const), private :: tstep, zeta, theta 
   type(const), private :: visco_num, visco_par, visco_par_par, visco_par_num, nu_phi_source, eta_num, D_perp_num, k_perp_num, gamma, reta
   type(const), private :: freeze_flag ! to freeze equations correctly, also in rhs_automatic.h
-  type(algexpr), parameter, private :: core_freeze = algexpr(basic=.true.,var=var_core_freeze)
+  type(const), private :: core_freeze ! freeze core artifically
 
   type(algexpr), public  :: rhs_semianalytic(n_var)
   type(algexpr), public  :: amat_semianalytic(n_var, n_var)
@@ -200,6 +199,7 @@ module mod_equations
     k_perp_num       = const(value = zk_perp_num,       token = "zk_perp_num"  )
     gamma            = const(value = Igamma,            token = "gamma"        )
     freeze_flag      = const(value = 1.d0,              token = "freeze_flag"  )
+    core_freeze      = const(value = 1.d0,              token = "core_freeze"  )
     if (Ieta .ne. 0.d0) then
       reta           = const(value = eta_ohmic/Ieta,  token = "reta")
     else
@@ -646,7 +646,7 @@ module mod_equations
     if (.not. allocated(thread_eq)) then
       allocate(thread_eq(nbthreads))
       do i=1,nbthreads
-        allocate(thread_eq(i)%eq(2*n_var+42,0:n_order-1,0:n_order-1,0:n_order-1,4))
+        allocate(thread_eq(i)%eq(2*n_var+41,0:n_order-1,0:n_order-1,0:n_order-1,4))
       end do
     end if
   end subroutine init_eq_struct

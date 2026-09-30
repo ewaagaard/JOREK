@@ -236,6 +236,7 @@ module phys_module
   real*8  :: bloating_factor      !< Linear radial factor by which the boundary has been bloated/extended. The LCFS should be at rcoord=1/(bloating_factor).
   logical :: freeze_psi_dynamics  !< Freeze evolution of Psi in mod_equations for model 183
   real*8  :: core_freeze_s0, core_freeze_sig
+  logical :: use_core_freeze      !< Freeze rho/T for s < core_freeze_s0 (fake, unmodeled core)
 
   !> Points used as blocks to extend grid into complex wall structures, see https://www.jorek.eu/wiki/doku.php?id=wallgrid_tutorial
   real*8  :: surface_cross_tol                                                  !< Tolerance when looking for crossing of polar lines and surfaces, needs to be > 1.0

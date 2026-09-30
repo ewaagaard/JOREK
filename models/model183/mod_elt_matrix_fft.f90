@@ -47,7 +47,6 @@ real*8     :: Bgrad_rho_star,     Bgrad_rho,     Bgrad_T_star,  Bgrad_T, BB2
 real*8     :: Bgrad_rho_star_psi, Bgrad_rho_psi, Bgrad_rho_rho, Bgrad_T_star_psi, Bgrad_T_psi, Bgrad_T_T, BB2_psi
 real*8     :: Bgrad_rho_rho_n, Bgrad_T_T_n, Bgrad_rho_k_star, Bgrad_T_k_star
 real*8     :: D_prof, ZK_prof, psi_norm
-real*8     :: core_freeze_s0, core_freeze_sig
 
 real*8     :: x_p_x, x_p_y, y_p_x, y_p_y, v_px, v_py, u_px, u_py
 real*8     :: v, v_x, v_y, v_s, v_t, v_p, v_ss, v_st, v_tt, v_xx, v_yy, v_xs, v_ys, v_xt, v_yt, v_xy
@@ -343,9 +342,6 @@ do ms=1, n_gauss
 
       eq(var_S_rho,0,0,0,:) = particle_source(mp,ms,mt)   ! S_rho
       eq(  var_S_j,0,0,0,:) = current_source(mp,ms,mt)/F0 ! S_j
-
-      ! Populate the core freeze
-      eq(var_core_freeze,0,0,0,:) = 0.5d0 - 0.5d0*tanh((psi_norm - core_freeze_s0)/core_freeze_sig)
 
       ! ############ Kinetics Particle Coupling source terms ############
       eq(var_aux_E0,0,0,0,:) = 0.d0
@@ -648,7 +644,7 @@ do ms=1, n_gauss
                                   - x_p(mp,ms,mt)*eq(var_v,1,1,0,:)
             
             
-          call get_rhs(rhs_ij, eq)
+          call get_rhs(rhs_ij, eq, psi_norm)
            
             ! kinetics extension - only impurities for now
             ! if (use_ncs .or. use_ics) then
@@ -725,7 +721,7 @@ do ms=1, n_gauss
                   eq(var_varStar_pol,0,1,0,:) = (-x_t(mp,ms,mt)*h_s(k,l,ms,mt))*element%size(k,l)*dur/xjac
                   eq(var_varStar_pol,0,0,1,:) = H(k,l,ms,mt)*element%size(k,l)*dup - eq(var_varStar_pol,1,0,0,:)*x_p(mp,ms,mt) - eq(var_varStar_pol,0,1,0,:)*y_p(mp,ms,mt)      
 
-                  call get_amat(amat_ij, eq)                
+                  call get_amat(amat_ij, eq, psi_norm)                
                   
                   ! Include pre-factor to contribution
                   do i_var = 1, n_var
@@ -1051,7 +1047,7 @@ subroutine get_auxiliary(eq)
 #include "aux_automatic.h"
 end subroutine
 
-subroutine get_rhs(rhs_ij, eq)
+subroutine get_rhs(rhs_ij, eq, psi_norm)
   use data_structure
   use constants
   use mod_parameters
@@ -1062,7 +1058,8 @@ subroutine get_rhs(rhs_ij, eq)
 
   real*8, dimension(n_var,4), intent(inout)       :: rhs_ij
   real*8, dimension(:,:,:,:,:), pointer, intent(in) :: eq
-  real*8     :: theta, zeta, reta, freeze_flag ! whether to freeze Psi (magnetic evolution)
+  real*8, intent(in) :: psi_norm
+  real*8     :: theta, zeta, reta, freeze_flag, core_freeze ! whether to freeze Psi (magnetic evolution)
   
   ! --- Take time evolution parameters from phys_module
   theta = time_evol_theta
@@ -1075,11 +1072,13 @@ subroutine get_rhs(rhs_ij, eq)
   end if
 
   freeze_flag = merge(1.d0, 0.d0, freeze_psi_dynamics)
+  core_freeze = merge(0.5d0 - 0.5d0*tanh((psi_norm - core_freeze_s0)/core_freeze_sig), &
+                       0.d0, use_core_freeze)
   
 #include "rhs_automatic.h"
 end subroutine
 
-subroutine get_amat(amat_ij, eq)
+subroutine get_amat(amat_ij, eq, psi_norm)
   use data_structure
   use constants
   use mod_parameters
@@ -1090,7 +1089,8 @@ subroutine get_amat(amat_ij, eq)
 
   real*8, dimension(n_var,n_var,4), intent(inout) :: amat_ij
   real*8, dimension(:,:,:,:,:), pointer, intent(in) :: eq
-  real*8     :: theta, zeta, reta, freeze_flag
+  real*8, intent(in) :: psi_norm
+  real*8     :: theta, zeta, reta, freeze_flag, core_freeze
   
   ! --- Take time evolution parameters from phys_module
   theta = time_evol_theta
@@ -1103,6 +1103,8 @@ subroutine get_amat(amat_ij, eq)
   end if
 
   freeze_flag = merge(1.d0, 0.d0, freeze_psi_dynamics)
+  core_freeze = merge(0.5d0 - 0.5d0*tanh((psi_norm - core_freeze_s0)/core_freeze_sig), &
+                       0.d0, use_core_freeze)
   
 #include "amat_automatic.h"
 end subroutine
