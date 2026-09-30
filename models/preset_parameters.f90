@@ -69,6 +69,8 @@ subroutine preset_parameters
   j_cutoff_sig = 0.025
   bloating_factor = 1.0d0
   freeze_psi_dynamics = .false.
+  core_freeze_s0  = -1.d0   ! disabled by default
+  core_freeze_sig = 0.02d0
 
   freeboundary_equil = .false. ! use free or fixed boundary equilibrium
   freeboundary       = .false. ! use free or fixed boundary?

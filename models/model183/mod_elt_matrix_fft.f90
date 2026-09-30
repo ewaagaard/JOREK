@@ -47,6 +47,7 @@ real*8     :: Bgrad_rho_star,     Bgrad_rho,     Bgrad_T_star,  Bgrad_T, BB2
 real*8     :: Bgrad_rho_star_psi, Bgrad_rho_psi, Bgrad_rho_rho, Bgrad_T_star_psi, Bgrad_T_psi, Bgrad_T_T, BB2_psi
 real*8     :: Bgrad_rho_rho_n, Bgrad_T_T_n, Bgrad_rho_k_star, Bgrad_T_k_star
 real*8     :: D_prof, ZK_prof, psi_norm
+real*8     :: core_freeze_s0, core_freeze_sig
 
 real*8     :: x_p_x, x_p_y, y_p_x, y_p_y, v_px, v_py, u_px, u_py
 real*8     :: v, v_x, v_y, v_s, v_t, v_p, v_ss, v_st, v_tt, v_xx, v_yy, v_xs, v_ys, v_xt, v_yt, v_xy
@@ -342,6 +343,9 @@ do ms=1, n_gauss
 
       eq(var_S_rho,0,0,0,:) = particle_source(mp,ms,mt)   ! S_rho
       eq(  var_S_j,0,0,0,:) = current_source(mp,ms,mt)/F0 ! S_j
+
+      ! Populate the core freeze
+      eq(var_core_freeze,0,0,0,:) = 0.5d0 - 0.5d0*tanh((psi_norm - core_freeze_s0)/core_freeze_sig)
 
       ! ############ Kinetics Particle Coupling source terms ############
       eq(var_aux_E0,0,0,0,:) = 0.d0
