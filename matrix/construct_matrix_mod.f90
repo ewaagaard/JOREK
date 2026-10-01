@@ -466,7 +466,7 @@ subroutine construct_matrix(mhd_sim, local_elms, n_local_elms, a_mat, rhs_vec, h
 #if JOREK_MODEL == 183
   ! Initialize n.B storage for stellarator BC (before OMP region)
   ! Pass n_plane and n_tor for toroidal variation support
-  call init_boundary_ndotB(node_list%n_nodes, n_plane, n_tor)
+  call init_boundary_ndotB(bnd_node_list%n_bnd_nodes, n_plane, n_tor)
 #endif
 
  
