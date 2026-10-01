@@ -13,17 +13,12 @@ module mod_boundary_ndotB
   private
   
   public :: init_boundary_ndotB
-  public :: accumulate_ndotB_at_node
   public :: accumulate_ndotB_at_node_plane
   public :: finalize_boundary_ndotB
   public :: get_ndotB_at_node
   public :: get_ndotB_fourier_at_node
   public :: get_vpar_target_for_column
   public :: get_vpar_target_dT_for_column
-  
-  ! Per-node storage (toroidally averaged, for backward compatibility)
-  real*8, allocatable, save :: ndotB_per_node(:)
-  real*8, allocatable, save :: ndotB_count_per_node(:)
   
   ! Per-node-plane storage (for toroidal variation)
   real*8, allocatable, save :: ndotB_per_node_plane(:,:)
@@ -84,7 +79,6 @@ subroutine init_boundary_ndotB(n_nodes, n_plane_in, n_tor_in)
   if (present(n_tor_in)) n_tor_local = n_tor_in
   
   ! Deallocate if already allocated
-  if (allocated(ndotB_per_node)) deallocate(ndotB_per_node)
   if (allocated(ndotB_count_per_node)) deallocate(ndotB_count_per_node)
   if (allocated(ndotB_per_node_plane)) deallocate(ndotB_per_node_plane)
   if (allocated(ndotB_count_per_node_plane)) deallocate(ndotB_count_per_node_plane)
@@ -94,10 +88,6 @@ subroutine init_boundary_ndotB(n_nodes, n_plane_in, n_tor_in)
   if (allocated(vpar_target_fourier_sin)) deallocate(vpar_target_fourier_sin)
   if (allocated(vpar_target_dT_fourier_cos)) deallocate(vpar_target_dT_fourier_cos)
   if (allocated(vpar_target_dT_fourier_sin)) deallocate(vpar_target_dT_fourier_sin)
-  
-  ! Allocate per-node (backward compatible)
-  allocate(ndotB_per_node(n_nodes))
-  allocate(ndotB_count_per_node(n_nodes))
   
   ! Allocate per-node-plane
   allocate(ndotB_per_node_plane(n_nodes, n_plane_local))
@@ -111,7 +101,6 @@ subroutine init_boundary_ndotB(n_nodes, n_plane_in, n_tor_in)
   allocate(vpar_target_dT_fourier_cos(n_nodes, n_tor_local))
   allocate(vpar_target_dT_fourier_sin(n_nodes, n_tor_local))
   
-  ndotB_per_node = 0.d0
   ndotB_count_per_node = 0.d0
   ndotB_per_node_plane = 0.d0
   ndotB_count_per_node_plane = 0.d0
@@ -131,18 +120,6 @@ subroutine init_boundary_ndotB(n_nodes, n_plane_in, n_tor_in)
   
 end subroutine init_boundary_ndotB
 
-subroutine accumulate_ndotB_at_node(inode, ndotB_value)
-  implicit none
-  integer, intent(in) :: inode
-  real*8, intent(in) :: ndotB_value
-  
-  if (.not. ndotB_initialized) return
-  if (inode < 1 .or. inode > n_nodes_stored) return
-  
-  ndotB_per_node(inode) = ndotB_per_node(inode) + ndotB_value
-  ndotB_count_per_node(inode) = ndotB_count_per_node(inode) + 1.d0
-  
-end subroutine accumulate_ndotB_at_node
 
 subroutine accumulate_ndotB_at_node_plane(inode, mp, ndotB_value)
   !---------------------------------------------------------------------------
