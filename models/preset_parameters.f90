@@ -75,6 +75,8 @@ subroutine preset_parameters
   vpar_sbc_strength = 1.d0   ! No scaling, can use e.g. 1.d-3  weak BC for testing
   vpar_sbc_angle_scale = 1.d0 ! No scaling (set > 1 to artificially increase angles for testing)
   vpar_sbc_smooth_sign = .false. ! Use original sign()*tanh(|alpha|) formula
+  vpar_sbc_T_floor = 1.d-4   ! Minimum T_local used when computing the v_par SBC T-derivative 
+                             ! to protect against against 1/cs, does not affect target value itself  
   
   ! Particle flux SBC defaults
   particle_flux_sbc_enable = .false.
@@ -85,15 +87,6 @@ subroutine preset_parameters
   heat_flux_sbc_enable = .false.
   heat_flux_sbc_strength = 0.d0  ! Start with zero (disabled)
   heat_flux_sbc_angle_scale = 1.d0 ! No scaling (set > 1 to artificially increase |ndotB|)
-
-  ! SBC local temperature interpolation
-  sbc_use_local_T = .false.  ! Use local edge T for sound speed. If .false., use T_1 (edge default).
-                             ! NOTE: with .false. (current default/validated setting), the v_par SBC
-                             ! target has zero dependence on any solved variable (T_1 is a fixed
-                             ! namelist constant) - no Jacobian coupling is needed or missing.
-                             ! With .true., T_local becomes a solved DOF
-  vpar_sbc_T_floor = 1.d-4   ! Minimum T_local used when computing the v_par SBC T-derivative 
-                             ! to protect against against 1/cs, does not affect target value itself
 
   freeboundary_equil = .false. ! use free or fixed boundary equilibrium
   freeboundary       = .false. ! use free or fixed boundary?

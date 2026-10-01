@@ -181,10 +181,6 @@ subroutine finalize_boundary_ndotB()
         cos_n = cos(dble(in-1) * dble(n_period) * phi)
         sin_n = sin(dble(in-1) * dble(n_period) * phi)
         
-        ! Fourier transform of ndotB (for diagnostics)
-        ndotB_fourier_cos(i, in) = ndotB_fourier_cos(i, in) + ndotB_val * cos_n
-        ndotB_fourier_sin(i, in) = ndotB_fourier_sin(i, in) + ndotB_val * sin_n
-        
         ! Fourier transform of vpar_target (for BC application - nonlinear!) and derivative
         vpar_target_fourier_cos(i,in)    = vpar_target_fourier_cos(i,in)    + vpar_target_val    * cos_n
         vpar_target_fourier_sin(i,in)    = vpar_target_fourier_sin(i,in)    + vpar_target_val    * sin_n

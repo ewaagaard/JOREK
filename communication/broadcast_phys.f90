@@ -1730,6 +1730,7 @@ if (my_id .ne. 0) then
   call MPI_UNPACK(buffer,bufsize,position,vpar_sbc_strength,      1,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,vpar_sbc_angle_scale,   1,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,vpar_sbc_smooth_sign,   1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,vpar_sbc_T_floor,       1,MPI_REAL8,MPI_COMM_WORLD,ierr)  
   
   ! Particle flux SBC parameters
   call MPI_UNPACK(buffer,bufsize,position,particle_flux_sbc_enable,      1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
@@ -1740,11 +1741,6 @@ if (my_id .ne. 0) then
   call MPI_UNPACK(buffer,bufsize,position,heat_flux_sbc_enable,      1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,heat_flux_sbc_strength,    1,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,heat_flux_sbc_angle_scale, 1,MPI_REAL8,MPI_COMM_WORLD,ierr)
-
-  ! n.B evolution control
-  call MPI_UNPACK(buffer,bufsize,position,ndotB_evolving,            1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
-  call MPI_UNPACK(buffer,bufsize,position,sbc_use_local_T,           1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
-  call MPI_UNPACK(buffer,bufsize,position,vpar_sbc_T_floor,          1,MPI_REAL8,MPI_COMM_WORLD,ierr)
 
   call MPI_UNPACK(buffer,bufsize,position,gvec_grid_import,       1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,extended_boundary,      1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)

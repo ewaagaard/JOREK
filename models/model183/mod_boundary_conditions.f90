@@ -136,8 +136,6 @@ contains
                               ! Compute angle-dependent target if SBC enabled
                               if (vpar_sbc_enable) then
                                 ! calculate delta vpar and apply, just like in model 600
-                                ! NOTE: target treated as frozen when sbc_use_local_T=.false. (T_1 is a constant, not a DOF). 
-                                ! Otherwise include the actual derivatives, just like in model 600
                                 delta_vpar = get_vpar_target_for_column(inode, in) &
                                               - node_list%node(inode)%values(in,1,var_Vpar)
 
@@ -147,7 +145,7 @@ contains
                                         a_mat%i_tor_min, a_mat%i_tor_max)
 
                                  ! add dT derivative entry if using local T
-                                 if (sbc_use_local_T .and. var_T .gt. 0) then
+                                 if (var_T .gt. 0) then
                                     call boundary_conditions_add_one_entry(                                &
                                           index_node, var_Vpar, in, index_node, var_T, in,                &
                                           -zbig * get_vpar_target_dT_for_column(inode, in),               &
