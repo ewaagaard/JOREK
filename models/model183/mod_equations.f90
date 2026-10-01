@@ -615,6 +615,13 @@ module mod_equations
       amat_semianalytic(var_T, var_T) = amat_semianalytic(var_T, var_T) + core_freeze * v * T
     end if
 
+    ! freeze Phi to match EMC3-Eirene with no ExB flows
+    rhs_semianalytic(var_Phi) = rhs_semianalytic(var_Phi) * (1.d0 - freeze_flag)
+    do j_var = 1, n_var
+      amat_semianalytic(var_Phi, j_var) = amat_semianalytic(var_Phi, j_var) * (1.d0 - freeze_flag)
+    end do
+    amat_semianalytic(var_Phi, var_Phi) = amat_semianalytic(var_Phi, var_Phi) + freeze_flag * v * Phi
+
     ! Also freeze zj - -- its own "definition" equation otherwise relaxes
     ! it toward the Psi=0-implied null current, not the true imported current
     !  rhs_semianalytic(var_zj) = zero
