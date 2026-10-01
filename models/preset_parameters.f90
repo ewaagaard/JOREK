@@ -86,9 +86,6 @@ subroutine preset_parameters
   heat_flux_sbc_strength = 0.d0  ! Start with zero (disabled)
   heat_flux_sbc_angle_scale = 1.d0 ! No scaling (set > 1 to artificially increase |ndotB|)
 
-  ! n.B evolution control
-  ndotB_evolving = .false.  ! Freeze n.B after first computation (default). Set to .true. for evolving fields.
-
   ! SBC local temperature interpolation
   sbc_use_local_T = .false.  ! Use local edge T for sound speed. If .false., use T_1 (edge default).
                              ! NOTE: with .false. (current default/validated setting), the v_par SBC

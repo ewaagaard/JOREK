@@ -33,8 +33,7 @@ contains
 
     use phys_module, only: F0, bc_natural_open, vpar_sbc_enable,&
                            particle_flux_sbc_enable, heat_flux_sbc_enable, &
-                           loop_voltage, tstep, central_density, central_mass, &
-                           sbc_use_local_T
+                           loop_voltage, tstep, central_density, central_mass
     use mod_boundary_ndotB, only: get_vpar_target_for_column, get_vpar_target_dT_for_column
     use mod_model_settings, only: var_Psi, var_Phi, var_zj, var_w, var_rho, var_T, &
                                   var_Vpar, var_Ti, var_Te, n_var

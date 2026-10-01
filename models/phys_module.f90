@@ -247,9 +247,6 @@ module phys_module
   logical :: heat_flux_sbc_enable  !< Enable heat flux BC at boundary
   real*8  :: heat_flux_sbc_strength !< Strength factor for heat flux BC (default 0.0)
   real*8  :: heat_flux_sbc_angle_scale !< Artificial scaling of |ndotB| for testing (default 1.0)
-
-  ! n.B evolution control
-  logical :: ndotB_evolving  !< If true, recompute n.B each timestep. If false, freeze after first computation.
   
   ! SBC local temperature interpolation
   logical :: sbc_use_local_T  !< If true, use interpolated local T at boundary for sound speed. If false, use T_1.

@@ -729,10 +729,6 @@ if (my_id .eq. 0) then
   call MPI_PACK(heat_flux_sbc_enable,      1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(heat_flux_sbc_strength,    1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(heat_flux_sbc_angle_scale, 1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
-
-  ! n.B evolution control
-  call MPI_PACK(ndotB_evolving,            1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
-  call MPI_PACK(sbc_use_local_T,           1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(vpar_sbc_T_floor,          1,MPI_REAL8, buffer, bufsize, position, MPI_COMM_WORLD, ierr)
 
   call MPI_PACK(gvec_grid_import,       1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
