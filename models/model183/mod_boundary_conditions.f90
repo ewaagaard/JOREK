@@ -108,7 +108,6 @@ contains
                           endif
                       endif
 
-                     if (bc_natural_open .and. k .eq. var_zj) cycle
                      ! Skip Dirichlet BC for density when particle flux SBC is enabled
                      ! (weak-form natural BC handled in mod_boundary_matrix_open.f90)
                      if (particle_flux_sbc_enable .and. k .eq. var_rho) cycle
