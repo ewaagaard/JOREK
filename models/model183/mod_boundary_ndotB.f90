@@ -77,14 +77,14 @@ subroutine finalize_boundary_ndotB()
   use nodes_elements
   use mod_parameters, only: n_period
   use corr_neg,       only: corr_neg_temp, dcorr_neg_temp_dT
-  use phys_module,    only: vpar_sbc_alpha0, vpar_sbc_strength, vpar_sbc_smooth_sign, &
+  use phys_module,    only: vpar_sbc_alpha0, vpar_sbc_strength, &
                             GAMMA, vpar_sbc_enable, vpar_sbc_T_floor
   use mod_model_settings, only: var_T, var_Vpar
   implicit none
   real*8, parameter :: pi = 3.14159265358979d0
   integer :: i, mp, in, ierr, my_id, n_nodes_loc, n_plane_loc, n_tor_loc, n_with_data
   real*8  :: phi, ndotB_val, cos_n, sin_n
-  real*8  :: alpha0_rad, alpha_rad, factor_sbc
+  real*8  :: alpha0_rad
   real*8  :: vpar_target_val, dvpar_target_dT_val, dT_local_dT_DOF, cs, T_local, cs_for_deriv
   real*8  :: ndotB_min, ndotB_max, ndotB_sum
   real*8, allocatable :: ndotB_plane_global(:,:), count_plane_global(:,:)
@@ -160,21 +160,12 @@ subroutine finalize_boundary_ndotB()
         ndotB_val = ndotB_per_node_plane(i, mp)
         
         ! Compute vpar_target in physical space
-        if (vpar_sbc_smooth_sign) then
-          ! Smooth: vpar = cs * tanh(ndotB / sin(alpha0)); avoids Gibbs at sign flips
-          vpar_target_val     = cs * tanh(ndotB_val / sin(alpha0_rad)) * vpar_sbc_strength
+        ! Smooth: vpar = cs * tanh(ndotB / sin(alpha0)); avoids Gibbs at sign flips
+        vpar_target_val     = cs * tanh(ndotB_val / sin(alpha0_rad)) * vpar_sbc_strength
 
-          ! T derivative with chain rule
-          dvpar_target_dT_val = (GAMMA / (2.d0*cs_for_deriv)) * tanh(ndotB_val / sin(alpha0_rad)) &
-                                 * vpar_sbc_strength * dT_local_dT_DOF
-        else
-          ! Original formulation: vpar = sign(ndotB) * cs * tanh(|alpha|/alpha0)
-          alpha_rad           = asin(min(1.d0, max(-1.d0, abs(ndotB_val))))
-          factor_sbc          = tanh(alpha_rad / alpha0_rad)
-          vpar_target_val     = sign(1.d0, ndotB_val) * cs * factor_sbc * vpar_sbc_strength
-          dvpar_target_dT_val = sign(1.d0, ndotB_val) * (GAMMA / (2.d0*cs_for_deriv)) * factor_sbc &
-                                 * vpar_sbc_strength * dT_local_dT_DOF
-        endif
+        ! T derivative with chain rule
+        dvpar_target_dT_val = (GAMMA / (2.d0*cs_for_deriv)) * tanh(ndotB_val / sin(alpha0_rad)) &
+                                * vpar_sbc_strength * dT_local_dT_DOF
         
         ! Fourier coefficient for mode (in-1) [0-indexed internally]
         ! in=1 is n=0 mode (constant), in=2 is n=1 mode, etc.

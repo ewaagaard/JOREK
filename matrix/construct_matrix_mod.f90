@@ -465,13 +465,10 @@ subroutine construct_matrix(mhd_sim, local_elms, n_local_elms, a_mat, rhs_vec, h
   endif
 
 #if JOREK_MODEL == 183
-  ! One-time consistency check: vpar_sbc_enable depends on n.B being
-  ! accumulated inside boundary_matrix_open(), which is only called when
-  ! bc_natural_open=.true. Without it, n.B stays zero and the v_par SBC
-  ! silently degenerates into "drive v_par to zero" instead of erroring.
+  ! One-time consistency check, if vpar_sbc_enable also needs bc_natural_open=.true.
   if (my_id == 0) then
     if (vpar_sbc_enable .and. (.not. bc_natural_open) .and. (.not. sbc_check_done)) then
-      write(*,'(A)') "WARNING: vpar_sbc_enable=.true. requires bc_natural_open=.true."
+      write(*,'(A)') "FATAL: vpar_sbc_enable=.true. requires bc_natural_open=.true."
       write(*,'(A)') "  Without it, n.B is never accumulated (boundary_matrix_open is not called),"
       write(*,'(A)') "  and the v_par sheath BC silently reduces to driving v_par -> 0."
       stop

@@ -74,7 +74,6 @@ subroutine preset_parameters
   vpar_sbc_alpha0 = 5.d0      ! 5 degree transition angle
   vpar_sbc_strength = 1.d0   ! No scaling, can use e.g. 1.d-3  weak BC for testing
   vpar_sbc_angle_scale = 1.d0 ! No scaling (set > 1 to artificially increase angles for testing)
-  vpar_sbc_smooth_sign = .false. ! Use original sign()*tanh(|alpha|) formula
   vpar_sbc_T_floor = 1.d-4   ! Minimum T_local used when computing the v_par SBC T-derivative 
                              ! to protect against against 1/cs, does not affect target value itself  
   

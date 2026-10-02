@@ -236,7 +236,6 @@ module phys_module
   real*8  :: vpar_sbc_alpha0      !< Transition angle in degrees for tanh smoothing (default 5.0)
   real*8  :: vpar_sbc_strength    !< Strength factor 0-1 for ramping up BC (default 1e-3 for testing)
   real*8  :: vpar_sbc_angle_scale !< Artificial scaling of incidence angle for testing (default 1.0)
-  logical :: vpar_sbc_smooth_sign !< Use smooth sign formulation to avoid Gibbs (default .false.)
   real*8  :: vpar_sbc_T_floor ! Minimum T_local used when computing the v_par SBC T-derivative to protect against against 1/cs -> infinity as edge T -> 0
                             ! Does NOT affect the target value itself, only its Jacobian coupling.
 

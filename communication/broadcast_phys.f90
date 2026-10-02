@@ -718,7 +718,6 @@ if (my_id .eq. 0) then
   call MPI_PACK(vpar_sbc_alpha0,        1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(vpar_sbc_strength,      1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(vpar_sbc_angle_scale,   1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
-  call MPI_PACK(vpar_sbc_smooth_sign,   1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   
   ! Particle flux SBC parameters
   call MPI_PACK(particle_flux_sbc_enable,      1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
@@ -1729,7 +1728,6 @@ if (my_id .ne. 0) then
   call MPI_UNPACK(buffer,bufsize,position,vpar_sbc_alpha0,        1,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,vpar_sbc_strength,      1,MPI_REAL8,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,vpar_sbc_angle_scale,   1,MPI_REAL8,MPI_COMM_WORLD,ierr)
-  call MPI_UNPACK(buffer,bufsize,position,vpar_sbc_smooth_sign,   1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,vpar_sbc_T_floor,       1,MPI_REAL8,MPI_COMM_WORLD,ierr)  
   
   ! Particle flux SBC parameters
