@@ -607,13 +607,13 @@ module mod_equations
     amat_semianalytic(var_rho, var_rho) = amat_semianalytic(var_rho, var_rho) + core_freeze * v * rho
 
     ! freeze single T in core
-    if (.not. with_TiTe) then
-      rhs_semianalytic(var_T) = rhs_semianalytic(var_T) * (1.d0 - core_freeze)
-      do j_var = 1, n_var
-        amat_semianalytic(var_T, j_var) = amat_semianalytic(var_T, j_var) * (1.d0 - core_freeze)
-      end do
-      amat_semianalytic(var_T, var_T) = amat_semianalytic(var_T, var_T) + core_freeze * v * T
-    end if
+    !if (.not. with_TiTe) then
+    !  rhs_semianalytic(var_T) = rhs_semianalytic(var_T) * (1.d0 - core_freeze)
+    !  do j_var = 1, n_var
+    !    amat_semianalytic(var_T, j_var) = amat_semianalytic(var_T, j_var) * (1.d0 - core_freeze)
+    !  end do
+    !  amat_semianalytic(var_T, var_T) = amat_semianalytic(var_T, var_T) + core_freeze * v * T
+    !end if
 
     ! freeze Phi to match EMC3-Eirene with no ExB flows
     rhs_semianalytic(var_Phi) = rhs_semianalytic(var_Phi) * (1.d0 - freeze_flag)
