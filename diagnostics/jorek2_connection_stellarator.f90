@@ -5,6 +5,19 @@
 !! (use_target=.true., via connlen.nml) additionally tests an analytic
 !! HaGrids-style discontinuous target before the mesh boundary is reached.
 !!
+!! Status codes (connection_length.dat):
+!!   1 = analytic target (use_target only), 2 = left the mesh (mesh boundary),
+!!   3 = left the valid minor-radius domain [R_MINOR_MIN, R_MINOR_MAX],
+!!   0 = L_CAP reached (confined), -1 = start point not found in the mesh
+!! For a TARGET-CONFORMING mesh (boundary = plate + closing arc) use use_target=.false.:
+!! the wall hit is then status 2.
+!!
+!! R_now/Z_now are now interpolated after EVERY step,
+!! independently of use_target. Previously they were only updated inside the
+!! use_target block, so with use_target=.false. the minor-radius check used the stale
+!! start position and status 3 could never trigger. Results with use_target=.true.
+!! are unchanged (same interpolation, same position, same order of checks).
+!!
 !! STEPS (somewhat similar to jorek2_connection_flux_aligned_grid):
 !! 1.  Read input parameters from connect.nml (optional) and distribute start points from stpts, matching jorek2_poincare
 !! 2.  Loop over start points
@@ -13,11 +26,9 @@
 !!        5. Perform step.
 !!        6. Check if element boundary is crossed.
 !!        7. If end boundary is crossed - signal to break and start new field line
-!!      8. Record turn based data for poincares. 
+!!      8. Record turn based data for poincares.
 !! 9.  Write connection length
 !! 10. Write strike points
-!! 
-!!
 !!
 module mod_connlen_step
 implicit none
@@ -223,7 +234,7 @@ real*8, allocatable  :: R_start(:), Z_start(:), P_start(:)
 integer, allocatable :: n_turn(:)
 real*8, allocatable  :: L_fwd(:), L_bwd(:)
 integer, allocatable :: status_fwd(:), status_bwd(:)
-! status: 1=analytic target, 2=mesh boundary, 0=capped(confined), -1=error
+! status: 1=analytic target, 2=mesh boundary, 3=left r-domain, 0=capped(confined), -1=error
 
 integer :: i_elm, ifail, checked_elms, dir, i_turn, i_phi
 real*8  :: s_line, t_line, p_line, R_now, Z_now, delta_phi_base, delta_phi_macro, L_acc
@@ -248,6 +259,7 @@ if (ierr == 0) then
 else
   write(*,*) 'connlen.nml not found -- using generic mesh-boundary connection length.'
 end if
+write(*,'(A,2f10.4,A,f10.2)') ' r-domain [R_MINOR_MIN, R_MINOR_MAX] = ', R_MINOR_MIN, R_MINOR_MAX, '   L_CAP = ', L_CAP
 
 call import_restart(node_list, element_list, 'jorek_restart', rst_format, ierr, .true.)
 
@@ -345,8 +357,11 @@ L_LINES: do i_lines = 1, n_lines
           exit L_TURNS
         end if
 
+        ! post-step position: needed by the target test AND by the r-domain check below
+        ! (previously only updated inside the use_target block -> stale with use_target=.false.)
+        call interp_RZP(node_list, element_list, i_elm, s_line, t_line, p_line, R_now, Z_now)
+
         if (use_target) then
-          call interp_RZP(node_list, element_list, i_elm, s_line, t_line, p_line, R_now, Z_now)
           R_mid = 0.5d0*(R_before + R_now)
           Z_mid = 0.5d0*(Z_before + Z_now)
 
@@ -363,7 +378,7 @@ L_LINES: do i_lines = 1, n_lines
             exit L_TURNS
           end if
         end if
-        
+
         ! minor-radius domain-validity check
         r_minor_now = sqrt((R_now-R0_M)**2 + Z_now**2)
         if ( (r_minor_now > R_MINOR_MAX) .or. (r_minor_now < R_MINOR_MIN) ) then
@@ -402,7 +417,7 @@ write(*,*) 'Done.  hit_target(f/b)=', count(status_fwd==1), count(status_bwd==1)
           '  capped(f/b)=', count(status_fwd==0), count(status_bwd==0), &
           '  errors(f/b)=', count(status_fwd==-1), count(status_bwd==-1), &
           '  domain_escape(f/b)=', count(status_fwd==3), count(status_bwd==3)
-          
+
 
 contains
 
