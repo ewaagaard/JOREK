@@ -59,7 +59,7 @@ real*8, dimension(n_plane) :: ndotB_num1, ndotB_num2, ndotB_den1, ndotB_den2
 real*8 :: bdotn_nodal1, bdotn_nodal2
 
 ! Particle flux SBC variables
-real*8  :: rhs_ij_5, cs_local, rho_local, abs_ndotB, abs_ndotB_hflux
+real*8  :: rhs_ij_5, cs_local, rho_local, abs_ndotB, s_min
 
 type(type_node) :: nodes2(2), tmp_node
 
@@ -276,18 +276,14 @@ do ms=1,n_gauss
     ! ndotB and incidence angle
     Btot = sqrt(dot_product(B_full, B_full))
     ndotB = dot_product(n_perp, B_full)
-    
-    ! Apply artificial angle scaling for SBC testing (vpar_sbc_angle_scale in namelist)
-    ! Scale factor > 1 increases apparent incidence angle for testing
-    ! Default = 1.0 (no scaling)
-    bdotn_normalized = ndotB / Btot * vpar_sbc_angle_scale  ! sin(alpha) scaled
+    bdotn_normalized = ndotB / Btot
     
     ! Print statements to ensure consistency
     if (.not. printed) then
       write(*, "(A)") "Mod_boundary_matrix_open:"
       write(*,'(A,I6,A,I6,A,E12.4,A,E12.4,A,E12.4,A,E12.4)') &
         " vertex=", element%vertex(vertex(1)), " mp=", mp, " ndotB=", ndotB, &
-        " Btot=", Btot, " bdotn_normalized=", bdotn_normalized, "vpar_sbc_angle_scale=", vpar_sbc_angle_scale
+        " Btot=", Btot, " bdotn_normalized=", bdotn_normalized
       printed = .true.
     endif
 
@@ -317,14 +313,14 @@ do ms=1,n_gauss
       rho_local = corr_neg_dens(rho0_interp(mp,ms))
       T_local = corr_neg_temp(T0_interp(mp,ms))
       cs_local = sqrt(GAMMA * T_local)
-      abs_ndotB = abs(bdotn_normalized) * particle_flux_sbc_angle_scale
-      abs_ndotB_hflux = abs(bdotn_normalized) * heat_flux_sbc_angle_scale
+      s_min     = sin(min_sheath_angle*PI/180.d0)
+      abs_ndotB = abs(bdotn_normalized) &
+                * 0.5d0*(1.d0 + tanh((abs(bdotn_normalized) - s_min)/(0.1d0*s_min)))   ! |b.n|, zero below min_sheath_angle (EMC3-like), smoot
     else
       rho_local = 0.d0
       T_local = 0.d0
       cs_local = 0.d0
       abs_ndotB = 0.d0
-      abs_ndotB_hflux = 0.d0
     endif
     
     do i=1,2
@@ -356,8 +352,7 @@ do ms=1,n_gauss
             ij5 = index_ij + 4*n_tor_local
             
             ! Negative sign: outward flux reduces density
-            ! particle_flux_sbc_strength allows ramping from 0 to 1
-            rhs_ij_5 = - v * rho_local * cs_local * abs_ndotB * BigR * dl * tstep * particle_flux_sbc_strength
+            rhs_ij_5 = - v * rho_local * cs_local * abs_ndotB * BigR * dl * tstep
             
             RHS(ij5) = RHS(ij5) + rhs_ij_5 * wgauss(ms)
           endif
@@ -373,8 +368,8 @@ do ms=1,n_gauss
             ij6 = index_ij + 5*n_tor_local
             
             ! Negative sign: outward heat flux reduces temperature
-            rhs_ij_6 = - v * (gamma_sheath - 1.d0) * rho_local * T_local * cs_local * abs_ndotB_hflux &
-                       * BigR * dl * tstep * heat_flux_sbc_strength
+            rhs_ij_6 = - v * (gamma_sheath - 1.d0) * rho_local * T_local * cs_local * abs_ndotB &
+                       * BigR * dl * tstep
             
             RHS(ij6) = RHS(ij6) + rhs_ij_6 * wgauss(ms)
           endif
@@ -446,7 +441,7 @@ do ms=1,n_gauss
                 if (particle_flux_sbc_enable) then
                   kl5 = index_kl + 4*n_tor_local
                   ! Psi is the trial function for the unknown (density increment)
-                  amat_55 = v * Psi * cs_local * abs_ndotB * BigR * dl * theta * tstep * particle_flux_sbc_strength
+                  amat_55 = v * Psi * cs_local * abs_ndotB * BigR * dl * theta * tstep
                   ELM(ij5,kl5) = ELM(ij5,kl5) + amat_55 * wgauss(ms)
                 endif
                 
@@ -457,8 +452,8 @@ do ms=1,n_gauss
                 if (heat_flux_sbc_enable) then
                   kl6 = index_kl + 5*n_tor_local
                   ! Psi is the trial function for the unknown (temperature increment)
-                  amat_66 = v * (gamma_sheath - 1.d0) * rho_local * Psi * cs_local * abs_ndotB_hflux &
-                            * BigR * dl * theta * tstep * heat_flux_sbc_strength
+                  amat_66 = v * (gamma_sheath - 1.d0) * rho_local * Psi * cs_local * abs_ndotB &
+                            * BigR * dl * theta * tstep
                   ELM(ij6,kl6) = ELM(ij6,kl6) + amat_66 * wgauss(ms)
                 endif
                 
