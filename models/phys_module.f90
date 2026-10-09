@@ -234,7 +234,25 @@ module phys_module
   real*8  :: j_cutoff_rcoord      !< Radial location from which the current is set to zero as it approaches the boundary - rcoord corresponds to the normalised toroidal flux
   real*8  :: j_cutoff_sig         !< Radial width over which the current is ramped down to zero towards the boundary
   real*8  :: bloating_factor      !< Linear radial factor by which the boundary has been bloated/extended. The LCFS should be at rcoord=1/(bloating_factor).
-  logical :: freeze_psi_dynamics  !< Freeze evolution of Psi in mod_equations for model 183
+  
+  ! Stellarator sheath boundary condition (SBC) parameters
+  logical :: vpar_sbc_enable      !< Enable angle-dependent v_par BC at boundary (stellarator SBC)
+  real*8  :: vpar_sbc_alpha0      !< Transition angle in degrees for tanh smoothing (default 5.0)
+  real*8  :: vpar_sbc_strength    !< Strength factor 0-1 for ramping up BC (default 1e-3 for testing)
+  real*8  :: vpar_sbc_angle_scale !< Artificial scaling of incidence angle for testing (default 1.0)
+  real*8  :: vpar_sbc_T_floor ! Minimum T_local used when computing the v_par SBC T-derivative to protect against against 1/cs -> infinity as edge T -> 0
+                            ! Does NOT affect the target value itself, only its Jacobian coupling.
+
+  ! Particle flux SBC (weak form BC for density equation)
+  logical :: particle_flux_sbc_enable  !< Enable particle flux BC at boundary
+  real*8  :: particle_flux_sbc_strength !< Strength factor for particle flux BC (default 0.0)
+  real*8  :: particle_flux_sbc_angle_scale !< Artificial scaling of |ndotB| for testing (default 1.0)
+
+  ! Heat flux SBC (weak form BC for temperature equation)
+  logical :: heat_flux_sbc_enable  !< Enable heat flux BC at boundary
+  real*8  :: heat_flux_sbc_strength !< Strength factor for heat flux BC (default 0.0)
+  real*8  :: heat_flux_sbc_angle_scale !< Artificial scaling of |ndotB| for testing (default 1.0)
+    logical :: freeze_psi_dynamics  !< Freeze evolution of Psi in mod_equations for model 183
   real*8  :: core_freeze_s0, core_freeze_sig
   logical :: use_core_freeze      !< Freeze rho/T for s < core_freeze_s0 (fake, unmodeled core)
 
