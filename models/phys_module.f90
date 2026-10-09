@@ -234,20 +234,10 @@ module phys_module
   ! Stellarator sheath boundary condition (SBC) parameters
   logical :: vpar_sbc_enable      !< Enable angle-dependent v_par BC at boundary (stellarator SBC)
   real*8  :: vpar_sbc_alpha0      !< Transition angle in degrees for tanh smoothing (default 5.0)
-  real*8  :: vpar_sbc_strength    !< Strength factor 0-1 for ramping up BC (default 1e-3 for testing)
-  real*8  :: vpar_sbc_angle_scale !< Artificial scaling of incidence angle for testing (default 1.0)
   real*8  :: vpar_sbc_T_floor ! Minimum T_local used when computing the v_par SBC T-derivative to protect against against 1/cs -> infinity as edge T -> 0
                             ! Does NOT affect the target value itself, only its Jacobian coupling.
-
-  ! Particle flux SBC (weak form BC for density equation)
-  logical :: particle_flux_sbc_enable  !< Enable particle flux BC at boundary
-  real*8  :: particle_flux_sbc_strength !< Strength factor for particle flux BC (default 0.0)
-  real*8  :: particle_flux_sbc_angle_scale !< Artificial scaling of |ndotB| for testing (default 1.0)
-
-  ! Heat flux SBC (weak form BC for temperature equation)
-  logical :: heat_flux_sbc_enable  !< Enable heat flux BC at boundary
-  real*8  :: heat_flux_sbc_strength !< Strength factor for heat flux BC (default 0.0)
-  real*8  :: heat_flux_sbc_angle_scale !< Artificial scaling of |ndotB| for testing (default 1.0)
+  logical :: particle_flux_sbc_enable  !< Enable particle flux BC at boundary (weak form BC for density equation)
+  logical :: heat_flux_sbc_enable  !< Enable heat flux BC at boundary (weak form BC for density equation)
   
   !> Points used as blocks to extend grid into complex wall structures, see https://www.jorek.eu/wiki/doku.php?id=wallgrid_tutorial
   real*8  :: surface_cross_tol                                                  !< Tolerance when looking for crossing of polar lines and surfaces, needs to be > 1.0

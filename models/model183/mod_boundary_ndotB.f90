@@ -77,11 +77,11 @@ subroutine finalize_boundary_ndotB()
   use nodes_elements
   use mod_parameters, only: n_period
   use corr_neg,       only: corr_neg_temp, dcorr_neg_temp_dT
-  use phys_module,    only: vpar_sbc_alpha0, vpar_sbc_strength, &
+  use constants, only: PI
+  use phys_module,    only: vpar_sbc_alpha0, &
                             GAMMA, vpar_sbc_enable, vpar_sbc_T_floor
   use mod_model_settings, only: var_T, var_Vpar
   implicit none
-  real*8, parameter :: pi = 3.14159265358979d0
   integer :: i, mp, in, ierr, my_id, n_nodes_loc, n_plane_loc, n_tor_loc, n_with_data
   real*8  :: phi, ndotB_val, cos_n, sin_n
   real*8  :: alpha0_rad
@@ -107,7 +107,7 @@ subroutine finalize_boundary_ndotB()
   call MPI_Allreduce(ndotB_count_per_node_plane, count_plane_global, n_nodes_loc*n_plane_loc, &
                       MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
   
-  alpha0_rad = vpar_sbc_alpha0 * pi / 180.d0
+  alpha0_rad = vpar_sbc_alpha0 * PI / 180.d0
 
   vpar_target_fourier_cos    = 0.d0
   vpar_target_fourier_sin    = 0.d0
@@ -156,16 +156,16 @@ subroutine finalize_boundary_ndotB()
 
     do in = 1, n_tor_loc
       do mp = 1, n_plane_loc
-        phi       = 2.d0 * pi * dble(mp-1) / dble(n_plane_loc * n_period)
+        phi       = 2.d0 * PI * dble(mp-1) / dble(n_plane_loc * n_period)
         ndotB_val = ndotB_per_node_plane(i, mp)
         
         ! Compute vpar_target in physical space
         ! Smooth: vpar = cs * tanh(ndotB / sin(alpha0)); avoids Gibbs at sign flips
-        vpar_target_val     = cs * tanh(ndotB_val / sin(alpha0_rad)) * vpar_sbc_strength
+        vpar_target_val     = cs * tanh(ndotB_val / sin(alpha0_rad))
 
         ! T derivative with chain rule
         dvpar_target_dT_val = (GAMMA / (2.d0*cs_for_deriv)) * tanh(ndotB_val / sin(alpha0_rad)) &
-                                * vpar_sbc_strength * dT_local_dT_DOF
+                                * dT_local_dT_DOF
         
         ! Fourier coefficient for mode (in-1) [0-indexed internally]
         ! in=1 is n=0 mode (constant), in=2 is n=1 mode, etc.

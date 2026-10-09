@@ -76,10 +76,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 resistive_wall,                                     &
                 wall_resistivity, wall_resistivity_fact,            &
                 bc_natural_open,                                    &
-                vpar_sbc_enable, vpar_sbc_alpha0, vpar_sbc_strength, &
-                vpar_sbc_angle_scale, &
-                particle_flux_sbc_enable, particle_flux_sbc_strength, particle_flux_sbc_angle_scale, &
-                heat_flux_sbc_enable, heat_flux_sbc_strength, heat_flux_sbc_angle_scale, &
+                vpar_sbc_enable, vpar_sbc_alpha0,                   &
+                particle_flux_sbc_enable, heat_flux_sbc_enable,     &
                 use_mumps_eq, use_pastix_eq, use_strumpack_eq,      &
                 use_mumps_prj, use_pastix_prj, use_strumpack_prj,   &
                 use_mumps, mumps_ordering,                          &
