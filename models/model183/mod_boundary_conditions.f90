@@ -77,6 +77,12 @@ contains
     real*8                :: vpar_target, vpar_current, delta_vpar
     real*8                :: ndotB_norm, T_local
     real*8                :: cs, alpha_rad, alpha0_rad, factor_sbc
+    logical, save :: flags_printed = .false.
+    
+    if (.not. flags_printed) then
+    write(*,'(A,I4,3L3)') ' rank, vpar/particle/heat SBC flags:', my_id, vpar_sbc_enable, particle_flux_sbc_enable, heat_flux_sbc_enable
+    flags_printed = .true.
+    endif
 
     zbig = 1.d12
        do i=1, n_local_elms
