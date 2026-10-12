@@ -31,6 +31,10 @@ real*8  :: psi_axis, R_axis, Z_axis, psi_bnd, R_xpoint(2), Z_xpoint(2)
 logical :: xpoint2
 logical, save :: printed = .false.
 
+real*8  :: R_in, Z_in
+integer :: ic
+logical, save :: orient_printed = .false. ! to check orientation
+
 integer :: vertex2(2), direction_perp(2), i, i2, i3, j, j2, j3, k, l, ms, mp, im, in, index_ij, index_kl, ij3, kl1, kl3, n_tor_local
 integer :: ij5, kl5  ! For particle flux SBC
 integer :: ij6, kl6  ! For heat flux SBC
@@ -273,10 +277,19 @@ do ms=1,n_gauss
     normal_mag = sqrt(normal_R**2 + normal_Z**2 + normal_p**2)
     n_perp = (/ normal_R, normal_Z, normal_p /) / normal_mag
 
-    ! ndotB and incidence angle
-    Btot = sqrt(dot_product(B_full, B_full))
-    ndotB = dot_product(n_perp, B_full)
-    bdotn_normalized = ndotB / Btot
+    ! orient n_perp outward: away from the element interior (nodes2 = vertices opposite the boundary edge)
+    R_in = 0.d0; Z_in = 0.d0
+    do ic = 1, n_coord_tor
+      R_in = R_in + 0.5d0*(nodes2(1)%x(ic,1,1) + nodes2(2)%x(ic,1,1))*HZ_coord(ic,mp)
+      Z_in = Z_in + 0.5d0*(nodes2(1)%x(ic,1,2) + nodes2(2)%x(ic,1,2))*HZ_coord(ic,mp)
+    end do
+    if (normal_R*(R_in - x_g(mp,ms)) + normal_Z*(Z_in - y_g(mp,ms)) > 0.d0) then
+      n_perp = -n_perp
+      if (.not. orient_printed) write(*,'(A)') ' boundary_matrix_open: geometric normal was INWARD -> flipped to outward'
+    else
+      if (.not. orient_printed) write(*,'(A)') ' boundary_matrix_open: geometric normal already outward'
+    endif
+    orient_printed = .true.
     
     ! Print statements to ensure consistency
     if (.not. printed) then
