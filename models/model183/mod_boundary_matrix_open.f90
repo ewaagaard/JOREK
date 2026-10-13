@@ -277,11 +277,6 @@ do ms=1,n_gauss
     normal_mag = sqrt(normal_R**2 + normal_Z**2 + normal_p**2)
     n_perp = (/ normal_R, normal_Z, normal_p /) / normal_mag
 
-    ! ndotB and incidence angle
-    Btot = sqrt(dot_product(B_full, B_full))
-    ndotB = dot_product(n_perp, B_full)
-    bdotn_normalized = ndotB / Btot
-
     ! orient n_perp outward: away from the element interior (nodes2 = vertices opposite the boundary edge)
     R_in = 0.d0; Z_in = 0.d0
     do ic = 1, n_coord_tor
@@ -296,6 +291,11 @@ do ms=1,n_gauss
     endif
     orient_printed = .true.
     
+    ! ndotB and incidence angle
+    Btot = sqrt(dot_product(B_full, B_full))
+    ndotB = dot_product(n_perp, B_full)
+    bdotn_normalized = ndotB / Btot
+
     ! Print statements to ensure consistency
     if (.not. printed) then
       write(*, "(A)") "Mod_boundary_matrix_open:"
