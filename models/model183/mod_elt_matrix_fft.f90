@@ -570,7 +570,7 @@ do ms=1, n_gauss
         if (zkpar_T_dependent) then
           eq(    var_k_par,0,0,0,:) = zk_par*(corr_neg_temp(eq(var_T,0,0,0,1))/T_0)**(2.5d0)               ! k_par 
           eq(var_dk_par_dT,0,0,0,:) = 2.5d0*zk_par*corr_neg_temp(eq(var_T,0,0,0,1))**(1.5d0)*T_0**(-2.5d0) ! dk_par_dT 
-          eq(var_dk_par_dT,0,0,0,:) = 0.d0      ! TEST: Picard linearization of Spitzer kappa_par
+          if (zkpar_picard) eq(var_dk_par_dT,0,0,0,:) = 0.d0     ! TEST: Picard linearization of Spitzer kappa_par
           if (eq(var_k_par,0,0,0,1) .gt. zk_par_max) then
             eq(    var_k_par,0,0,0,:) = zk_par_max
             eq(var_dk_par_dT,0,0,0,:) = 0.d0

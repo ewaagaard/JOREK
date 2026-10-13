@@ -45,6 +45,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 tokamak_device, gvec_grid_import,bloating_factor,   &
                 freeze_psi_dynamics,                                &
                 use_core_freeze, core_freeze_s0, core_freeze_sig,   &
+                zkpar_picard,                                       &
                 F0, gamma_sheath, density_reflection,               &
                 zjz_0, zjz_1, zj_coef,                              &
                 rho_0, rho_1, rho_coef,                             &

@@ -72,6 +72,7 @@ subroutine preset_parameters
   use_core_freeze  = .false.   ! mirrors freeze_psi_dynamics's own convention exactly
   core_freeze_s0   = 0.30d0    ! meaningful physical default now, not a disabling trick
   core_freeze_sig = 0.02d0
+  zkpar_picard = .false. 
 
   ! Stellarator SBC defaults
   vpar_sbc_enable = .false.
