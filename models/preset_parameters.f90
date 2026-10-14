@@ -76,6 +76,8 @@ subroutine preset_parameters
                              ! to protect against against 1/cs, does not affect target value itself  
   particle_flux_sbc_enable = .false.
   heat_flux_sbc_enable = .false.
+  zkpar_picard = .false.
+  use_core_freeze = .false.
 
   freeboundary_equil = .false. ! use free or fixed boundary equilibrium
   freeboundary       = .false. ! use free or fixed boundary?
