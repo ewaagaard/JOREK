@@ -1,5 +1,6 @@
 module mod_boundary_matrix_open
   implicit none
+   real*8, public :: diag_bnd(3) = 0.d0   ! sums over Gauss pts x planes: 1 = area R*dl*w, 2 = sheath, 3 = decay (code units)
 contains
 subroutine boundary_matrix_open(vertex, direction, element, nodes, xpoint2, xcase2, R_axis, Z_axis, psi_axis, &
                                 psi_bnd, R_xpoint, Z_xpoint, ELM, RHS, i_tor_min, i_tor_max, ielm)
@@ -17,6 +18,7 @@ use mod_boundary_ndotB, only: accumulate_ndotB_at_node_plane
 use mod_interp, only: interp_gvec, interp_RZP
 use mod_model_settings, only: var_Psi, var_zj, var_rho, var_T
 use corr_neg, only: corr_neg_temp, corr_neg_dens
+use diffusivities, only: get_zkperp
 implicit none
 
 type(type_element)   :: element
@@ -64,6 +66,7 @@ real*8 :: bdotn_nodal1, bdotn_nodal2
 
 ! Particle flux SBC variables
 real*8  :: rhs_ij_5, cs_local, rho_local, abs_ndotB, s_min
+real*8 :: r_g, w_arc, a_dec ! for decay length condition
 
 type(type_node) :: nodes2(2), tmp_node
 
@@ -327,7 +330,7 @@ do ms=1,n_gauss
     div_Bv2_pgrad_Psi0 = Bv2*Lap_Psi0 + dot_product(grad_Bv2,grad_Psi0) - Bv_parderiv_Bv_parderiv_Psi0
     
     ! Particle flux SBC: pre-compute values that depend only on (mp,ms) Gauss point
-    if (particle_flux_sbc_enable .or. heat_flux_sbc_enable) then
+    if (particle_flux_sbc_enable .or. heat_flux_sbc_enable  .or. decay_bc_enable) then
       rho_local = corr_neg_dens(rho0_interp(mp,ms))
       T_local = corr_neg_temp(T0_interp(mp,ms))
       cs_local = sqrt(GAMMA * T_local)
@@ -340,7 +343,22 @@ do ms=1,n_gauss
       cs_local = 0.d0
       abs_ndotB = 0.d0
     endif
-    
+
+    ! --- once per (Gauss point, plane): Robin coefficient + diagnostics
+    a_dec = 0.d0
+    if (decay_bc_enable) then
+      r_g   = sqrt((BigR - decay_R0)**2 + y_g(mp,ms)**2)
+      w_arc = 0.5d0*(1.d0 + tanh((r_g - decay_rmin)/5.d-3))
+      a_dec = ( get_zkperp(1.d0)*rho_local/decay_lambda_T &
+              + decay_conv*GAMMA*D_perp(1)*rho_local/decay_lambda_n ) * w_arc
+    endif
+    !$omp atomic
+    diag_bnd(1) = diag_bnd(1) + BigR*dl*wgauss(ms)
+    !$omp atomic
+    diag_bnd(2) = diag_bnd(2) + (gamma_sheath-1.d0)*rho_local*T_local*cs_local*abs_ndotB*BigR*dl*wgauss(ms)
+    !$omp atomic
+    diag_bnd(3) = diag_bnd(3) + a_dec*T_local*BigR*dl*wgauss(ms)
+
     do i=1,2
       do j=1,2
         j2 = direction(j)
@@ -390,6 +408,12 @@ do ms=1,n_gauss
                        * BigR * dl * tstep
             
             RHS(ij6) = RHS(ij6) + rhs_ij_6 * wgauss(ms)
+          endif
+
+          ! --- EMC3-type decay-length (Robin) energy BC on the closing arc: q = (kperp/lam_T + gamma*D_perp*rho/lam_n) * T
+          if (decay_bc_enable) then
+            ij6 = index_ij + 5*n_tor_local
+            RHS(ij6) = RHS(ij6) - v*a_dec*T_local*BigR*dl*tstep*wgauss(ms)
           endif
           
           do k=1,n_vertex_max
@@ -473,6 +497,12 @@ do ms=1,n_gauss
                   amat_66 = v * (gamma_sheath - 1.d0) * rho_local * Psi * cs_local * abs_ndotB &
                             * BigR * dl * theta * tstep
                   ELM(ij6,kl6) = ELM(ij6,kl6) + amat_66 * wgauss(ms)
+                endif
+
+                ! decay length to avoid insulating wall
+                if (decay_bc_enable) then
+                  kl6 = index_kl + 5*n_tor_local
+                  ELM(ij6,kl6) = ELM(ij6,kl6) + v*a_dec*Psi*BigR*dl*theta*tstep*wgauss(ms)
                 endif
                 
                 ! v_par BC handled in mod_boundary_conditions.f90 (node-based penalty)

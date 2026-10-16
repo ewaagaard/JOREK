@@ -35,6 +35,7 @@ contains
                            particle_flux_sbc_enable, heat_flux_sbc_enable, &
                            loop_voltage, tstep, central_density, central_mass
     use mod_boundary_ndotB, only: get_vpar_target_for_column, get_vpar_target_dT_for_column
+    use mod_boundary_matrix_open, only: diag_bnd
     use mod_model_settings, only: var_Psi, var_Phi, var_zj, var_w, var_rho, var_T, &
                                   var_Vpar, var_Ti, var_Te, n_var
     use vacuum, only: is_freebound
@@ -83,6 +84,8 @@ contains
     write(*,'(A,I4,3L3)') ' rank, vpar/particle/heat SBC flags:', my_id, vpar_sbc_enable, particle_flux_sbc_enable, heat_flux_sbc_enable
     flags_printed = .true.
     endif
+    if (any(diag_bnd /= 0.d0)) write(*,'(A,I4,3ES15.6)') ' rank, bnd diag [area, P_sheath, P_decay] (sums):', my_id, diag_bnd
+    diag_bnd = 0.d0
 
     zbig = 1.d12
        do i=1, n_local_elms

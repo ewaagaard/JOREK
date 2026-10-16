@@ -73,6 +73,12 @@ subroutine preset_parameters
   core_freeze_s0   = 0.30d0    ! meaningful physical default now, not a disabling trick
   core_freeze_sig = 0.02d0
   zkpar_picard = .false. 
+  decay_bc_enable = .false.  ! Robinson BC for decay length condition, like EMC3
+  decay_lambda_T = 0.04d0
+  decay_lambda_n = 0.03d0
+  decay_R0 = 5.9d0
+  decay_rmin = 0.68d0
+  decay_conv = 0.d0 ! only conduction by default
 
   ! Stellarator SBC defaults
   vpar_sbc_enable = .false.

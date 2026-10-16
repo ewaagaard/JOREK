@@ -46,6 +46,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 freeze_psi_dynamics,                                &
                 use_core_freeze, core_freeze_s0, core_freeze_sig,   &
                 zkpar_picard,                                       &
+                decay_bc_enable, decay_lambda_T, decay_lambda_n,    &
+                decay_R0, decay_rmin, decay_conv,                   &
                 F0, gamma_sheath, density_reflection,               &
                 zjz_0, zjz_1, zj_coef,                              &
                 rho_0, rho_1, rho_coef,                             &

@@ -246,6 +246,12 @@ module phys_module
   real*8  :: core_freeze_s0, core_freeze_sig
   logical :: use_core_freeze      !< Freeze rho/T for s < core_freeze_s0 (fake, unmodeled core)
   logical :: zkpar_picard ! for Picard linearisation of the zk_par
+  logical ::   decay_bc_enable  ! Robinson BC for decay length condition, like EMC3
+  real*8  :: decay_lambda_T
+  real*8  :: decay_lambda_n
+  real*8  :: decay_R0
+  real*8  :: decay_rmin
+  real*8  :: decay_conv 
 
   !> Points used as blocks to extend grid into complex wall structures, see https://www.jorek.eu/wiki/doku.php?id=wallgrid_tutorial
   real*8  :: surface_cross_tol                                                  !< Tolerance when looking for crossing of polar lines and surfaces, needs to be > 1.0
