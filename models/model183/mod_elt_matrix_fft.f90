@@ -548,7 +548,7 @@ do ms=1, n_gauss
                                 + nu_e_bg * (T0_e_corr - T0_i_corr) * drho0_corr_dn
 
       else !>>> if not with_TiTe
-        eq(var_k_perp,0,0,0,:)        = get_zkperp(psi_norm)        ! Perpendicular thermal conductivity
+        eq(var_k_perp,0,0,0,:)        = get_zkperp(psi_norm) * corr_neg_dens(eq(var_rho,0,0,0,1))  ! Perpendicular thermal conductivity ! TEMP for EMC3: kappa_perp = (g-1) chi t_norm rho (local)    
         eq(   var_S_e,0,0,0,:)        = heat_source(mp,ms,mt)       ! S_e
         ! Resistivity
         if (eta_T_dependent) then

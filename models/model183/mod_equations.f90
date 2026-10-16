@@ -404,15 +404,15 @@ module mod_equations
                                + i_k_perp*gradprod(v,i_T0-i_T0_equil)                                 & ! K_perp grad(T)
                                + (i_k_par-i_k_perp)*B0_parderiv(v)*B0_parderiv(i_T0-i_T0_equil)/B2    & ! (K_par - K_perp) grad_par(T)
                                + k_perp_num*Lap(v)*Lap(i_T0-i_T0_equil)                               & ! ad-hoc hyper-conductivity
-                               + D_perp*i_T0*gradprod(v, rho0-rho0_equil)                             & ! D_perp T grad(rho)
-                               + (D_par - D_perp)*i_T0*B0_parderiv(v)*B0_parderiv(rho0-rho0_equil)/B2 & ! (D_par - D_perp) T grad_par(rho) 
+                               + gamma*D_perp*i_T0*gradprod(v, rho0-rho0_equil)                             & ! D_perp T grad(rho)   ! TEMP 5/2 T Gamma_perp (for EMC3)
+                               + gamma*(D_par - D_perp)*i_T0*B0_parderiv(v)*B0_parderiv(rho0-rho0_equil)/B2 & ! (D_par - D_perp) T grad_par(rho)   ! TEMP. Was 3/2 (EMC3)
                                - v*i_S_e)                                                             & ! heat source
                                + zeta*v*(rho0*i_delta_T + i_T0*delta_rho)                               ! dp_dt
 
       amat_semianalytic(i_var, var_Psi)  = tstep*theta*(v*vpar0*Bv_pbrack(rho0*i_T0, Psi)            & ! v_par.grad(p) component
                                          + gamma*v*rho0*i_T0*Bv_pbrack(vpar0, Psi)                   & ! gamma p div(v_par) component 
                                          + (i_k_par - i_k_perp)*gradDgrad_par(v,i_T0-i_T0_equil)     & ! (K_par - K_perp) grad_par(T)
-                                         + (D_par - D_perp)*i_T0*gradDgrad_par(v,rho0-rho0_equil))     ! (D_par - D_perp) T grad_par(rho)
+                                         + gamma*(D_par - D_perp)*i_T0*gradDgrad_par(v,rho0-rho0_equil))     ! (D_par - D_perp) T grad_par(rho) ! TEMP 5/2 T Gamma_perp (for EMC3
 
       amat_semianalytic(i_var, var_Phi)  = tstep*theta*v*(Bv_pbrack(rho0*i_T0,Phi)                   & ! v_ExB.grad(p) component
                                          - gamma*rho0*i_T0*Bv_pbrack(Bv2,Phi)/Bv2)/Bv2                 ! gamma p div(v_ExB) component
@@ -424,8 +424,8 @@ module mod_equations
                                          - gamma*v*rho*i_T0*Bv_pbrack(Bv2,Phi0)/(Bv2*Bv2)            & ! gamma p div(v_ExB) component
                                          + gamma*v*rho*i_T0*Bv_parderiv(vpar0)                       & ! gamma p div(v_par) component
                                          + gamma*v*rho*i_T0*Bv_pbrack(vpar0, Psi0)                   & ! gamma p div(v_par) component 
-                                         + D_perp*i_T0*gradprod(v,rho)                               & ! D_perp T grad(rho)
-                                         + (D_par - D_perp)*i_T0*B0_parderiv(v)*B0_parderiv(rho)/B2)   ! (D_par - D_perp) T grad_par(rho)
+                                         + gamma*D_perp*i_T0*gradprod(v,rho)                               & ! D_perp T grad(rho)           ! TEMP. Was 3/2 (EMC3)
+                                         + gamma*(D_par - D_perp)*i_T0*B0_parderiv(v)*B0_parderiv(rho)/B2)   ! (D_par - D_perp) T grad_par(rho)  ! TEMP. Was 3/2 (EMC3)
 
       amat_semianalytic(i_var, i_var)    = (1.d0 + zeta)*v*rho0*i_T                                          &  ! dp_dt
                                          + tstep*theta*(v*Bv_pbrack(rho0*i_T,Phi0)/Bv2                       &  ! v_ExB.grad(p) component 
@@ -438,8 +438,8 @@ module mod_equations
                                          + (i_k_par - i_k_perp)*B0_parderiv(v)*B0_parderiv(i_T)/B2           &  ! (K_par - K_perp) grad_par(T)
                                          + i_dk_par_dT*i_T*B0_parderiv(v)*B0_parderiv(i_T0-i_T0_equil)/B2    &  ! (K_par - K_perp) grad_par(T)
                                          + k_perp_num*Lap(v)*Lap(i_T)                                        &  ! ad-hoc hyper-conductivity
-                                         + D_perp*i_T*gradprod(v,rho0-rho0_equil)                            &  ! D_perp T grad(rho)
-                                         + (D_par - D_perp)*i_T*B0_parderiv(v)*B0_parderiv(rho0-rho0_equil)/B2) ! (D_par - D_perp) T grad_par(rho)
+                                         + gamma*D_perp*i_T*gradprod(v,rho0-rho0_equil)                            &  ! D_perp T grad(rho)  ! TEMP. Was 3/2 (EMC3)
+                                         + gamma*(D_par - D_perp)*i_T*B0_parderiv(v)*B0_parderiv(rho0-rho0_equil)/B2) ! (D_par - D_perp) T grad_par(rho)  ! TEMP. Was 3/2 (EMC3)
 
       if (with_vpar) then
         amat_semianalytic(i_var, var_vpar) = tstep*theta*(v*vpar*Bv_parderiv(rho0*i_T0)              &  ! v_par.grad(p) component
