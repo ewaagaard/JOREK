@@ -2534,9 +2534,14 @@ surface_list%psi_values(2) = ES%psi_axis + (ES%psi_bnd - ES%psi_axis) * 0.02d0
 surface_list%psi_values(3) = ES%psi_axis + (ES%psi_bnd - ES%psi_axis) * 0.95d0 
 surface_list%psi_values(4) = ES%psi_axis + (ES%psi_bnd - ES%psi_axis) * 0.99d0
 
-call find_flux_surfaces(my_id,xpoint, xcase, node_list, element_list, surface_list)
-call determine_q_profile(node_list, element_list, surface_list, ES%psi_axis, ES%psi_xpoint,    &
+if (.not. freeze_psi_dynamics) then
+  call find_flux_surfaces(my_id,xpoint, xcase, node_list, element_list, surface_list)
+  call determine_q_profile(node_list, element_list, surface_list, ES%psi_axis, ES%psi_xpoint,    &
      ES%Z_xpoint, qval, radav)
+else
+  qval  = 0.d0          ! Psi frozen (stellarator stage 1): no Psi flux surfaces, q not defined
+  radav = 0.d0
+endif
 
 q02 = qval(2)
 q95 = qval(3)
