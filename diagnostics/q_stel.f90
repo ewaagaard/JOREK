@@ -84,7 +84,6 @@ end if
 
 ! Read and broadcast restart file
 call det_modes()
-call initialise_basis
 call init_chi_basis
 call initialise_parameters(my_id,  "__NO_FILENAME__")
 call log_parameters(my_id)
@@ -93,7 +92,6 @@ call broadcast_phys(my_id)
 call broadcast_elements(my_id, element_list)                ! elements
 call broadcast_nodes(my_id, node_list)                      ! nodes
 call broadcast_boundary(my_id,bnd_elm_list,bnd_node_list)
-call populate_element_rtree(node_list, element_list)
 call broadcast_equil_state(my_id)
 
 ! Determine element neighbours
