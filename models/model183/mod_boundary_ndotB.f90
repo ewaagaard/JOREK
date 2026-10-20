@@ -256,7 +256,7 @@ function get_vpar_target_for_column(inode, in) result(vpar_target)
   if (mod(in, 2) .eq. 0) then
     vpar_target = vpar_target_fourier_cos(inode, k_fourier)
   else
-    vpar_target = -vpar_target_fourier_sin(inode, k_fourier)   ! JOREK basis is -sin
+    vpar_target = +vpar_target_fourier_sin(inode, k_fourier)   ! fluid basis is +sin (coordinates use -sin)
   endif
 
 end function get_vpar_target_for_column
@@ -289,7 +289,7 @@ function get_vpar_target_dT_for_column(inode, in) result(vpar_target_dT)
   if (mod(in, 2) .eq. 0) then
     vpar_target_dT = vpar_target_dT_fourier_cos(inode, k_fourier)
   else
-    vpar_target_dT = -vpar_target_dT_fourier_sin(inode, k_fourier)
+    vpar_target_dT = +vpar_target_dT_fourier_sin(inode, k_fourier)
   endif
 
 end function get_vpar_target_dT_for_column
