@@ -62,7 +62,8 @@ real*8  :: B_full(3), n_perp(3)
 real*8  :: normal_R, normal_Z, normal_p, normal_mag
 real*8  :: Btot, ndotB, bdotn_normalized
 real*8, dimension(n_plane) :: ndotB_num1, ndotB_num2, ndotB_den1, ndotB_den2
-real*8 :: bdotn_nodal1, bdotn_nodal2
+real*8, dimension(n_plane) :: Bmag_num1, Bmag_num2
+real*8 :: bdotn_nodal1, bdotn_nodal2, Bmag_nodal1, Bmag_nodal2
 
 ! Particle flux SBC variables
 real*8  :: rhs_ij_5, cs_local, rho_local, abs_ndotB, s_min
@@ -215,6 +216,7 @@ end do
 
 ndotB_num1 = 0.d0; ndotB_num2 = 0.d0
 ndotB_den1 = 0.d0; ndotB_den2 = 0.d0
+Bmag_num1  = 0.d0; Bmag_num2  = 0.d0
 
 n_tor_local = i_tor_max - i_tor_min + 1
 do ms=1,n_gauss
@@ -319,6 +321,8 @@ do ms=1,n_gauss
     ndotB_den1(mp) = ndotB_den1(mp) + H1(1,1,ms) * wgauss(ms)
     ndotB_num2(mp) = ndotB_num2(mp) + bdotn_normalized * H1(2,1,ms) * wgauss(ms)
     ndotB_den2(mp) = ndotB_den2(mp) + H1(2,1,ms) * wgauss(ms)
+    Bmag_num1(mp)  = Bmag_num1(mp)  + Btot * H1(1,1,ms) * wgauss(ms)
+    Bmag_num2(mp)  = Bmag_num2(mp)  + Btot * H1(2,1,ms) * wgauss(ms)
 
     Lap_Psi0 = Psi0_xx + Psi0_x/BigR + Psi0_yy + Psi0_phiphi/BigR**2
     Bv_parderiv_Bv_parderiv_Psi0 = chi(1,0,0)*(chi(2,0,0)*Psi0_x + chi(1,0,0)*Psi0_xx + chi(1,1,0)*Psi0_y + chi(0,1,0)*Psi0_xy &
@@ -519,9 +523,11 @@ end do
 do mp = 1, n_plane
   bdotn_nodal1 = 0.d0; if (ndotB_den1(mp) > 0.d0) bdotn_nodal1 = ndotB_num1(mp)/ndotB_den1(mp)
   bdotn_nodal2 = 0.d0; if (ndotB_den2(mp) > 0.d0) bdotn_nodal2 = ndotB_num2(mp)/ndotB_den2(mp)
+  Bmag_nodal1  = 0.d0; if (ndotB_den1(mp) > 0.d0) Bmag_nodal1  = Bmag_num1(mp)/ndotB_den1(mp)
+  Bmag_nodal2  = 0.d0; if (ndotB_den2(mp) > 0.d0) Bmag_nodal2  = Bmag_num2(mp)/ndotB_den2(mp)
   !$omp critical (ndotB_storage)
-  call accumulate_ndotB_at_node_plane(element%vertex(vertex(1)), mp, bdotn_nodal1)
-  call accumulate_ndotB_at_node_plane(element%vertex(vertex(2)), mp, bdotn_nodal2)
+  call accumulate_ndotB_at_node_plane(element%vertex(vertex(1)), mp, bdotn_nodal1, Bmag_nodal1)
+  call accumulate_ndotB_at_node_plane(element%vertex(vertex(2)), mp, bdotn_nodal2, Bmag_nodal2)
   !$omp end critical (ndotB_storage)
 end do
 
