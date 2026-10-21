@@ -22,7 +22,7 @@ module mod_boundary_ndotB
   
   ! Per-node-plane storage (physical space, toroidal variation)
   real*8, allocatable, save :: ndotB_per_node_plane(:,:)        ! (n_nodes, n_plane)
-  real*8, allocatable, save :: ndotB_count_per_node_plane(:,:)  ! (n_nodes, n_plane)
+  real*8, allocatable, save :: Bmag_per_node_plane(:,:)         ! (n_nodes, n_plane), |B| for vpar = v/|B|
   
   ! Fourier coefficients of vpar_target (tanh smoothing applied in physical space first) and its T-derivative
   real*8, allocatable, save :: vpar_target_fourier_cos(:,:)     ! (n_nodes, n_tor)
@@ -38,6 +38,7 @@ subroutine init_boundary_ndotB(n_nodes, n_plane_in, n_tor_in)
   
   if (allocated(ndotB_per_node_plane))       deallocate(ndotB_per_node_plane)
   if (allocated(ndotB_count_per_node_plane)) deallocate(ndotB_count_per_node_plane)
+  if (allocated(Bmag_per_node_plane))        deallocate(Bmag_per_node_plane)
   if (allocated(vpar_target_fourier_cos))    deallocate(vpar_target_fourier_cos)
   if (allocated(vpar_target_fourier_sin))    deallocate(vpar_target_fourier_sin)
   if (allocated(vpar_target_dT_fourier_cos)) deallocate(vpar_target_dT_fourier_cos)
@@ -45,6 +46,7 @@ subroutine init_boundary_ndotB(n_nodes, n_plane_in, n_tor_in)
   
   allocate(ndotB_per_node_plane(n_nodes, n_plane_in));       ndotB_per_node_plane       = 0.d0
   allocate(ndotB_count_per_node_plane(n_nodes, n_plane_in)); ndotB_count_per_node_plane = 0.d0
+  allocate(Bmag_per_node_plane(n_nodes, n_plane_in));        Bmag_per_node_plane        = 0.d0
   allocate(vpar_target_fourier_cos(n_nodes, n_tor_in));      vpar_target_fourier_cos    = 0.d0
   allocate(vpar_target_fourier_sin(n_nodes, n_tor_in));      vpar_target_fourier_sin    = 0.d0
   allocate(vpar_target_dT_fourier_cos(n_nodes, n_tor_in));   vpar_target_dT_fourier_cos = 0.d0
@@ -53,7 +55,7 @@ subroutine init_boundary_ndotB(n_nodes, n_plane_in, n_tor_in)
 end subroutine init_boundary_ndotB
 
 
-subroutine accumulate_ndotB_at_node_plane(inode, mp, ndotB_value)
+subroutine accumulate_ndotB_at_node_plane(inode, mp, ndotB_value, Bmag_value)
   !---------------------------------------------------------------------------
   ! Accumulate ndotB at a specific node and toroidal plane. Called once per
   ! boundary Gauss point (ms==1 only, see mod_boundary_matrix_open.f90) during
@@ -61,7 +63,7 @@ subroutine accumulate_ndotB_at_node_plane(inode, mp, ndotB_value)
   !---------------------------------------------------------------------------
   implicit none
   integer, intent(in) :: inode, mp
-  real*8, intent(in) :: ndotB_value
+  real*8, intent(in) :: ndotB_value, Bmag_value
   
   if (.not. allocated(ndotB_per_node_plane)) return
   if (inode < 1 .or. inode > ubound(ndotB_per_node_plane,1)) return
@@ -69,6 +71,7 @@ subroutine accumulate_ndotB_at_node_plane(inode, mp, ndotB_value)
   
   ndotB_per_node_plane(inode, mp)       = ndotB_per_node_plane(inode, mp)       + ndotB_value
   ndotB_count_per_node_plane(inode, mp) = ndotB_count_per_node_plane(inode, mp) + 1.d0
+  Bmag_per_node_plane(inode, mp)        = Bmag_per_node_plane(inode, mp)        + Bmag_value
   
 end subroutine accumulate_ndotB_at_node_plane
 
@@ -87,7 +90,8 @@ subroutine finalize_boundary_ndotB()
   real*8  :: alpha0_rad
   real*8  :: vpar_target_val, dvpar_target_dT_val, dT_local_dT_DOF, cs, T_local, cs_for_deriv
   real*8  :: ndotB_min, ndotB_max, ndotB_sum
-  real*8, allocatable :: ndotB_plane_global(:,:), count_plane_global(:,:)
+  real*8, allocatable :: ndotB_plane_global(:,:), count_plane_global(:,:), Bmag_plane_global(:,:)
+  real*8  :: Bmag_val
   logical, save :: diag_printed = .false.
   logical, save :: warned_2T    = .false.
   
@@ -101,10 +105,13 @@ subroutine finalize_boundary_ndotB()
 
   allocate(ndotB_plane_global(n_nodes_loc, n_plane_loc))
   allocate(count_plane_global(n_nodes_loc, n_plane_loc))
+  allocate(Bmag_plane_global(n_nodes_loc, n_plane_loc))
 
   call MPI_Allreduce(ndotB_per_node_plane, ndotB_plane_global, n_nodes_loc*n_plane_loc, &
                       MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
   call MPI_Allreduce(ndotB_count_per_node_plane, count_plane_global, n_nodes_loc*n_plane_loc, &
+                      MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+  call MPI_Allreduce(Bmag_per_node_plane, Bmag_plane_global, n_nodes_loc*n_plane_loc, &
                       MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
   
   alpha0_rad = vpar_sbc_alpha0 * PI / 180.d0
@@ -126,12 +133,14 @@ subroutine finalize_boundary_ndotB()
     do mp = 1, n_plane_loc
       if (count_plane_global(i,mp) > 0.5d0) then
         ndotB_per_node_plane(i,mp) = ndotB_plane_global(i,mp) / count_plane_global(i,mp)
+        Bmag_per_node_plane(i,mp)  = Bmag_plane_global(i,mp)  / count_plane_global(i,mp)
         n_with_data = n_with_data + 1
         ndotB_sum   = ndotB_sum + ndotB_per_node_plane(i,mp)
         ndotB_min   = min(ndotB_min, ndotB_per_node_plane(i,mp))
         ndotB_max   = max(ndotB_max, ndotB_per_node_plane(i,mp))
       else
         ndotB_per_node_plane(i,mp) = 0.d0
+        Bmag_per_node_plane(i,mp)  = 1.d0      ! no data: target is 0 anyway (tanh(0)); avoids 0/0
       endif
     enddo
 
@@ -158,14 +167,15 @@ subroutine finalize_boundary_ndotB()
       do mp = 1, n_plane_loc
         phi       = 2.d0 * PI * dble(mp-1) / dble(n_plane_loc * n_period)
         ndotB_val = ndotB_per_node_plane(i, mp)
+        Bmag_val  = Bmag_per_node_plane(i, mp)
         
         ! Compute vpar_target in physical space
         ! Smooth: vpar = cs * tanh(ndotB / sin(alpha0)); avoids Gibbs at sign flips
-        vpar_target_val     = cs * tanh(ndotB_val / sin(alpha0_rad))
+        vpar_target_val     = cs * tanh(ndotB_val / sin(alpha0_rad)) / Bmag_val     ! v = vpar*B
 
         ! T derivative with chain rule
         dvpar_target_dT_val = (GAMMA / (2.d0*cs_for_deriv)) * tanh(ndotB_val / sin(alpha0_rad)) &
-                                * dT_local_dT_DOF
+                                * dT_local_dT_DOF / Bmag_val
         
         ! Fourier coefficient for mode (in-1) [0-indexed internally]
         ! in=1 is n=0 mode (constant), in=2 is n=1 mode, etc.
@@ -215,7 +225,7 @@ subroutine finalize_boundary_ndotB()
 
   enddo
 
-  deallocate(ndotB_plane_global, count_plane_global)
+  deallocate(ndotB_plane_global, count_plane_global, Bmag_plane_global)
 
   if (my_id == 0 .and. n_with_data > 0) then
     write(*,'(A,I6,A,E12.4,A,E12.4,A,E12.4)') &
@@ -256,7 +266,7 @@ function get_vpar_target_for_column(inode, in) result(vpar_target)
   if (mod(in, 2) .eq. 0) then
     vpar_target = vpar_target_fourier_cos(inode, k_fourier)
   else
-    vpar_target = -vpar_target_fourier_sin(inode, k_fourier)   ! JOREK basis is -sin
+    vpar_target = +vpar_target_fourier_sin(inode, k_fourier)   ! fluid basis is +sin (coordinates use -sin)
   endif
 
 end function get_vpar_target_for_column
@@ -289,7 +299,7 @@ function get_vpar_target_dT_for_column(inode, in) result(vpar_target_dT)
   if (mod(in, 2) .eq. 0) then
     vpar_target_dT = vpar_target_dT_fourier_cos(inode, k_fourier)
   else
-    vpar_target_dT = -vpar_target_dT_fourier_sin(inode, k_fourier)
+    vpar_target_dT = +vpar_target_dT_fourier_sin(inode, k_fourier)
   endif
 
 end function get_vpar_target_dT_for_column
