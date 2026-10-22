@@ -190,7 +190,6 @@ subroutine finalize_boundary_ndotB()
           Tw_min = min(Tw_min, T_pl);      Tw_max = max(Tw_max, T_pl)
           cs_min = min(cs_min, cs_pl(mp)); cs_max = max(cs_max, cs_pl(mp))
         endif
-        endif
       else                                                 ! 2T placeholder, here too
         cs_pl(mp)  = cs
         dcs_pl(mp) = 0.d0
