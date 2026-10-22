@@ -22,6 +22,7 @@ module mod_boundary_ndotB
   
   ! Per-node-plane storage (physical space, toroidal variation)
   real*8, allocatable, save :: ndotB_per_node_plane(:,:)        ! (n_nodes, n_plane)
+  real*8, allocatable, save :: ndotB_count_per_node_plane(:,:)  ! (n_nodes, n_plane)
   real*8, allocatable, save :: Bmag_per_node_plane(:,:)         ! (n_nodes, n_plane), |B| for vpar = v/|B|
   
   ! Fourier coefficients of vpar_target (tanh smoothing applied in physical space first) and its T-derivative
