@@ -153,10 +153,10 @@ contains
                                         a_mat%i_tor_min, a_mat%i_tor_max)
 
                                  ! add dT derivative entry if using local T
-                                 if (var_T .gt. 0) then
-                                    call boundary_conditions_add_one_entry(                                &
-                                          index_node, var_Vpar, in, index_node, var_T, in,                &
-                                          -zbig * get_vpar_target_dT_for_column(inode, in),               &
+                                 if (var_T .gt. 0 .and. in .eq. 1) then   ! target depends on T(n=0) only;
+                                    call boundary_conditions_add_one_entry(                               &
+                                          index_node, var_Vpar, 1, index_node, var_T, 1,                  &  ! (vpar_n, T_0) dropped
+                                          -zbig * get_vpar_target_dT_for_column(inode, 1),                &
                                           index_min, index_max, a_mat)
                                  endif
                               endif

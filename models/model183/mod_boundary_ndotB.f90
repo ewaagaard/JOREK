@@ -95,6 +95,7 @@ subroutine finalize_boundary_ndotB()
   real*8  :: Bmag_val
   logical, save :: diag_printed = .false.
   logical, save :: warned_2T    = .false.
+  logical, save :: dumped = .false.
   
   if (.not. allocated(ndotB_per_node_plane)) return
 
@@ -225,6 +226,18 @@ subroutine finalize_boundary_ndotB()
     endif
 
   enddo
+
+    if (my_id == 0 .and. .not. dumped) then
+    open(77, file='ndotB_nodes.dat', status='replace')
+    write(77,'(A)') '# inode  mp  bdotn_out  |B|   (node-plane values used for the v_par target)'
+    do i = 1, n_nodes_loc
+      do mp = 1, n_plane_loc
+        if (count_plane_global(i,mp) > 0.5d0) write(77,'(2I7,2ES20.12)') i, mp, &
+             ndotB_per_node_plane(i,mp), Bmag_per_node_plane(i,mp)
+      enddo
+    enddo
+    close(77); dumped = .true.
+  endif
 
   deallocate(ndotB_plane_global, count_plane_global, Bmag_plane_global)
 
