@@ -731,9 +731,9 @@ if (my_id .eq. 0) then
   ! Stellarator SBC parameters
   call MPI_PACK(vpar_sbc_enable,        1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(vpar_sbc_alpha0,        1,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(vpar_sbc_T_floor,          1,MPI_REAL8, buffer, bufsize, position, MPI_COMM_WORLD, ierr)
   call MPI_PACK(particle_flux_sbc_enable,      1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(heat_flux_sbc_enable,      1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
-  call MPI_PACK(vpar_sbc_T_floor,          1,MPI_REAL8, buffer, bufsize, position, MPI_COMM_WORLD, ierr)
 
   call MPI_PACK(gvec_grid_import,       1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(extended_boundary,      1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
