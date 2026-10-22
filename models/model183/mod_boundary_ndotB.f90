@@ -92,7 +92,11 @@ subroutine finalize_boundary_ndotB()
   real*8  :: vpar_target_val, dvpar_target_dT_val, dT_local_dT_DOF, cs, T_local, cs_for_deriv
   real*8  :: ndotB_min, ndotB_max, ndotB_sum
   real*8, allocatable :: ndotB_plane_global(:,:), count_plane_global(:,:), Bmag_plane_global(:,:)
+  real*8, allocatable :: cs_pl(:), dcs_pl(:)            ! per-plane sound speed and d(cs)/d(T_0 dof)
+  real*8  :: T_pl
   real*8  :: Bmag_val
+  real*8  :: cs_min, cs_max, Tw_min, Tw_max
+  logical, save :: cs_printed = .false.
   logical, save :: diag_printed = .false.
   logical, save :: warned_2T    = .false.
   logical, save :: dumped = .false.
@@ -108,6 +112,7 @@ subroutine finalize_boundary_ndotB()
   allocate(ndotB_plane_global(n_nodes_loc, n_plane_loc))
   allocate(count_plane_global(n_nodes_loc, n_plane_loc))
   allocate(Bmag_plane_global(n_nodes_loc, n_plane_loc))
+  allocate(cs_pl(n_plane_loc), dcs_pl(n_plane_loc))
 
   call MPI_Allreduce(ndotB_per_node_plane, ndotB_plane_global, n_nodes_loc*n_plane_loc, &
                       MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
@@ -127,6 +132,8 @@ subroutine finalize_boundary_ndotB()
   ndotB_sum   = 0.d0
   ndotB_min   =  1.d10
   ndotB_max   = -1.d10
+
+  cs_min = huge(1.d0); cs_max = -huge(1.d0); Tw_min = huge(1.d0); Tw_max = -huge(1.d0) ! diagnostics
 
   do i = 1, n_nodes_loc
 
@@ -165,6 +172,30 @@ subroutine finalize_boundary_ndotB()
     cs           = sqrt(GAMMA * T_local)
     cs_for_deriv = sqrt(GAMMA * max(T_local, vpar_sbc_T_floor))  ! protects 1/cs in the Jacobian only
 
+    ! sound speed from local temperature
+    do mp = 1, n_plane_loc
+      if (var_T .gt. 0) then
+        phi  = 2.d0*PI*dble(mp-1)/dble(n_plane_loc*n_period)
+        T_pl = node_list%node(i)%values(1,1,var_T)
+        do in = 2, n_tor_loc
+          if (mod(in,2) == 0) then
+            T_pl = T_pl + node_list%node(i)%values(in,1,var_T)*cos(dble(in/2)*dble(n_period)*phi)
+          else
+            T_pl = T_pl + node_list%node(i)%values(in,1,var_T)*sin(dble(in/2)*dble(n_period)*phi)   ! fluid basis +sin
+          endif
+        enddo
+        cs_pl(mp)  = sqrt(GAMMA*corr_neg_temp(T_pl))
+        dcs_pl(mp) = GAMMA/(2.d0*sqrt(GAMMA*max(corr_neg_temp(T_pl), vpar_sbc_T_floor))) * dcorr_neg_temp_dT(T_pl)
+        if (count_plane_global(i,mp) > 0.5d0) then        ! wall nodes only
+          Tw_min = min(Tw_min, T_pl);      Tw_max = max(Tw_max, T_pl)
+          cs_min = min(cs_min, cs_pl(mp)); cs_max = max(cs_max, cs_pl(mp))
+        endif
+      else                                                 ! 2T placeholder, here too
+        cs_pl(mp)  = cs
+        dcs_pl(mp) = 0.d0
+      endif
+    enddo
+
     do in = 1, n_tor_loc
       do mp = 1, n_plane_loc
         phi       = 2.d0 * PI * dble(mp-1) / dble(n_plane_loc * n_period)
@@ -173,11 +204,10 @@ subroutine finalize_boundary_ndotB()
         
         ! Compute vpar_target in physical space
         ! Smooth: vpar = cs * tanh(ndotB / sin(alpha0)); avoids Gibbs at sign flips
-        vpar_target_val     = cs * tanh(ndotB_val / sin(alpha0_rad)) / Bmag_val     ! v = vpar*B
+        vpar_target_val     = cs_pl(mp)  * tanh(ndotB_val / sin(alpha0_rad)) / Bmag_val     ! v = vpar*B, local T
 
         ! T derivative with chain rule
-        dvpar_target_dT_val = (GAMMA / (2.d0*cs_for_deriv)) * tanh(ndotB_val / sin(alpha0_rad)) &
-                                * dT_local_dT_DOF / Bmag_val
+        dvpar_target_dT_val = dcs_pl(mp) * tanh(ndotB_val / sin(alpha0_rad)) / Bmag_val     ! d/d(T_0 dof): dT_pl/dT_0 = 1
         
         ! Fourier coefficient for mode (in-1) [0-indexed internally]
         ! in=1 is n=0 mode (constant), in=2 is n=1 mode, etc.
@@ -239,12 +269,18 @@ subroutine finalize_boundary_ndotB()
     close(77); dumped = .true.
   endif
 
-  deallocate(ndotB_plane_global, count_plane_global, Bmag_plane_global)
+  deallocate(ndotB_plane_global, count_plane_global, Bmag_plane_global, cs_pl, dcs_pl)
 
   if (my_id == 0 .and. n_with_data > 0) then
     write(*,'(A,I6,A,E12.4,A,E12.4,A,E12.4)') &
       " ndotB stats (MPI reduced, per node*plane): n_samples=", n_with_data, &
       " min=", ndotB_min, " max=", ndotB_max, " avg=", ndotB_sum/dble(n_with_data)
+  endif
+
+  if (my_id == 0 .and. .not. cs_printed .and. cs_max > 0.d0) then
+    write(*,'(A,2ES12.4,A,2ES12.4,A,2ES12.4)') " v_par SBC wall T_pl min/max=", Tw_min, Tw_max, &
+         "  c_s min/max=", cs_min, cs_max, "  expect sqrt(GAMMA*T)=", sqrt(GAMMA*max(Tw_min,0.d0)), sqrt(GAMMA*Tw_max)
+    cs_printed = .true.
   endif
   
 end subroutine finalize_boundary_ndotB
