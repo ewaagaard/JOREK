@@ -81,7 +81,8 @@ contains
     logical, save :: flags_printed = .false.
     
     if (.not. flags_printed) then
-    write(*,'(A,I4,3L3)') ' rank, vpar/particle/heat SBC flags:', my_id, vpar_sbc_enable, particle_flux_sbc_enable, heat_flux_sbc_enable
+      write(*,'(A,I4,4L3,2ES11.3)') ' rank, vpar/particle/heat SBC, core_freeze, s0, sig:', my_id, &
+        vpar_sbc_enable, particle_flux_sbc_enable, heat_flux_sbc_enable, use_core_freeze, core_freeze_s0, core_freeze_sig
     flags_printed = .true.
     endif
     if (any(diag_bnd /= 0.d0)) write(*,'(A,I4,3ES15.6)') ' rank, bnd diag [area, P_sheath, P_decay] (sums):', my_id, diag_bnd
