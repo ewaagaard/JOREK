@@ -81,7 +81,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 resistive_wall,                                     &
                 wall_resistivity, wall_resistivity_fact,            &
                 bc_natural_open,                                    &
-                vpar_sbc_enable, vpar_sbc_alpha0,                   &
+                vpar_sbc_enable, vpar_sbc_alpha0, vpar_sbc_T_floor, &
                 particle_flux_sbc_enable, heat_flux_sbc_enable,     &
                 min_sheath_angle,                                   &
                 use_mumps_eq, use_pastix_eq, use_strumpack_eq,      &
