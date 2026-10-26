@@ -65,7 +65,7 @@ logical, save :: freeze_msg_done = .false.
 real*8     :: Mh(4,4), Mk(4,4), Mtmp(4,4), cq(4), GT0h(4), w0h(4), Mw0h(4)
 real*8     :: Gh(4, n_vertex_max*n_degrees*n_tor), Wh(4, n_vertex_max*n_degrees*n_tor), MWh(4, n_vertex_max*n_degrees*n_tor)
 real*8     :: dV_h, BB2_h, hyb_off
-integer    :: ipiv_h(4), info_h, nloc_h, p_h, q_h
+integer    :: ipiv_h(4), info_h, nloc_h, p_h, q_h, ii_h, jj_h, mm_h
 integer    :: idx6_h(n_vertex_max*n_degrees*n_tor)     ! ELM/RHS index of the T equation for local function p
 
 real*8, dimension(n_gauss,n_gauss)    :: x_g, x_s, x_t

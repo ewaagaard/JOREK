@@ -109,6 +109,10 @@ RHS_k = 0.d0
 ELM   = 0.d0
 RHS   = 0.d0
 
+if (hybrid_par) then
+  write(*,*) 'ERROR: hybrid_par is implemented in element_matrix (n_tor = 1) only, not in element_matrix_fft'; stop
+endif
+
 if (freeze_except_T .and. .not. freeze_msg_done) then
 !$omp critical (freeze_msg)
   if (.not. freeze_msg_done) then
