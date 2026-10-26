@@ -75,7 +75,7 @@ integer, parameter :: nqh = 4*n_tor, nph = n_vertex_max*n_degrees*n_tor
 real*8     :: Mh(nqh,nqh), Mk(nqh,nqh), Mtmp(nqh,nqh), GT0h(nqh), w0h(nqh), Mw0h(nqh)
 real*8     :: Gh(nqh,nph), Wh(nqh,nph), MWh(nqh,nph)
 real*8     :: cq(4), cqz(nqh), dV_h, sB_h, bA_h, bC_h, hyb_off, ps_n0(n_gauss,n_gauss)
-integer    :: ipiv_h(nqh), info_h, p_h, q_h, ih, jh, mh, nh, idx6_h(nph)
+integer    :: ipiv_h(nqh), info_h, p_h, q_h, ih, jh, mz_h, nh, idx6_h(nph)
 
 integer*8  :: plan
 real*8     :: in_fft(1:n_plane)
@@ -122,10 +122,11 @@ if (hybrid_par) then
 endif
 ps_n0 = 0.d0
 
-if (freeze_except_T .and. .not. freeze_msg_done) then
+if ((freeze_except_T .or. hybrid_par) .and. .not. freeze_msg_done) then
 !$omp critical (freeze_msg)
   if (.not. freeze_msg_done) then
-    write(*,'(A,2ES16.8)') ' [model199 element_matrix_fft] freeze_except_T ACTIVE; psi_axis, psi_bnd =', psi_axis, psi_bnd
+    write(*,'(A,L2,A,L2,A,2ES16.8)') ' [model199 element_matrix_fft] freeze_except_T =', freeze_except_T, &
+         ', hybrid_par =', hybrid_par, '; psi_axis, psi_bnd =', psi_axis, psi_bnd
     freeze_msg_done = .true.
   endif
 !$omp end critical (freeze_msg)
@@ -202,8 +203,10 @@ do i=1,n_vertex_max
        
        if (keep_current_prof) &
          call current(xpoint2, xcase2, x_g(ms,mt),y_g(ms,mt), Z_xpoint, eq_g(1,1,ms,mt),psi_axis,psi_bnd,current_source(ms,mt))
-       call sources(xpoint2, xcase2, y_g(ms,mt), Z_xpoint, merge(ps_n0(ms,mt), eq_g(1,1,ms,mt), freeze_except_T),psi_axis,psi_bnd,particle_source(ms,mt),heat_source(ms,mt))
-
+       ! Toy runs (freeze_except_T): source from the n = 0 psi only, i.e. the axisymmetric S(psi_n) of the
+       ! unperturbed field. Default: total psi on plane 1 (unchanged behaviour).
+       call sources(xpoint2, xcase2, y_g(ms,mt), Z_xpoint, merge(ps_n0(ms,mt), eq_g(1,1,ms,mt), freeze_except_T), &
+                    psi_axis, psi_bnd, particle_source(ms,mt), heat_source(ms,mt))
      enddo
    enddo
  enddo
@@ -368,8 +371,8 @@ do ms=1, n_gauss
 
      if (hybrid_par) then
        cq = (/ 1.d0, xgauss(ms), xgauss(mt), xgauss(ms)*xgauss(mt) /)
-       do mh = 1, n_tor
-         cqz(4*(mh-1)+1:4*mh) = cq * HZ(mh,mp)               ! q functions c_k(s,t) Z_m(phi) at this point
+       do mz_h = 1, n_tor
+         cqz(4*(mz_h-1)+1:4*mz_h) = cq * HZ(mz_h,mp)          ! q functions c_k(s,t) Z_m(phi) at this point
        enddo
        dV_h = wst * BigR * xjac                               ! plane-local (on a 3D grid xjac, BigR depend on mp too)
        sB_h = sqrt((F0*F0 + ps0_x*ps0_x + ps0_y*ps0_y)/BigR**2)
