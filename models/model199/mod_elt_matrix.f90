@@ -59,6 +59,7 @@ real*8     :: amat_stab_31, amat_stab_32, amat_stab_33, amat_stab_34 ,amat_stab_
 
 logical    :: xpoint2 
 integer    :: n_tor_local
+logical, save :: freeze_msg_done = .false.
 
 real*8, dimension(n_gauss,n_gauss)    :: x_g, x_s, x_t
 real*8, dimension(n_gauss,n_gauss)    :: x_ss, x_st, x_tt
@@ -84,6 +85,15 @@ delta_t => thread_struct(tid)%delta_t
 
 ELM = 0.d0
 RHS = 0.d0
+
+if (freeze_except_T .and. .not. freeze_msg_done) then
+!$omp critical (freeze_msg)
+  if (.not. freeze_msg_done) then
+    write(*,'(A,2ES16.8)') ' [model199 element_matrix] freeze_except_T ACTIVE; psi_axis, psi_bnd =', psi_axis, psi_bnd
+    freeze_msg_done = .true.
+  endif
+!$omp end critical (freeze_msg)
+endif
 
 ! --- Take time evolution parameters from phys_module
 theta = time_evol_theta
@@ -393,6 +403,10 @@ do ms=1, n_gauss
                     + zeta * v * delta_g(mp,6,ms,mt) * BigR                       * xjac         & 
                     + v * (gamma-1.d0) * eta_T_ohm * (zj0 / BigR)**2.d0    * BigR * xjac  * tstep
 
+           if (freeze_except_T) then   ! only T evolves: zero rhs of rows 1-5
+             rhs_ij_1 = 0.d0; rhs_ij_2 = 0.d0; rhs_ij_3 = 0.d0; rhs_ij_4 = 0.d0; rhs_ij_5 = 0.d0
+           endif
+
            ij1 = index_ij
            ij2 = index_ij + 1*n_tor_local
            ij3 = index_ij + 2*n_tor_local
@@ -542,6 +556,13 @@ do ms=1, n_gauss
                            + ZK_prof * BigR * (v_x*T_x + v_y*T_y + v_p*T_p /BigR**2 ) * xjac * theta * tstep &
                            - v * T * (gamma-1.d0) * deta_dT_ohm * (zj0 / BigR)**2.d0  * BigR * xjac  * theta * tstep
 
+                 if (freeze_except_T) then   ! rows 1-5: pure mass diagonal, no coupling -> delta = 0
+                   amat_11 = v*psi*xjac; amat_12 = 0.d0; amat_13 = 0.d0; amat_16 = 0.d0
+                   amat_21 = 0.d0; amat_22 = v*u*xjac; amat_23 = 0.d0; amat_24 = 0.d0; amat_25 = 0.d0; amat_26 = 0.d0
+                   amat_31 = 0.d0; amat_33 = v*zj*xjac
+                   amat_42 = 0.d0; amat_44 = v*w*xjac
+                   amat_51 = 0.d0; amat_52 = 0.d0; amat_55 = v*rho*xjac
+                 endif
 
                  kl1 = index_kl
                  kl2 = index_kl + 1*n_tor_local

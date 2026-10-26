@@ -157,6 +157,8 @@ if (my_id .eq. 0) then
     read(5,in1)
   endif
 
+  if (freeze_except_T) write(*,*) 'freeze_except_T = .true.: rows psi, u, zj, w, rho frozen (toy-model test)'
+
   if ( ( n_tor .eq. 1 ) .and. freeboundary .and. (.not. freeboundary_equil) ) then
     write(*,*) 'WARNING: The parameter freeboundary is automatically changed to .false. since n_tor==1 and freeboundary_equil is .false.'
     freeboundary= .false.

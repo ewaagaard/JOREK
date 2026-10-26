@@ -67,6 +67,7 @@ real*8     :: amat_stab_11, amat_stab_12, amat_stab_13, amat_stab_14 ,amat_stab_
 real*8     :: amat_stab_31, amat_stab_32, amat_stab_33, amat_stab_34 ,amat_stab_41,amat_stab_42, amat_stab_43, amat_stab_44
 real*8     :: theta, zeta, delta_u_x, delta_u_y
 logical    :: xpoint2
+logical, save :: freeze_msg_done = .false.
 
 
 
@@ -107,6 +108,15 @@ RHS_p = 0.d0
 RHS_k = 0.d0
 ELM   = 0.d0
 RHS   = 0.d0
+
+if (freeze_except_T .and. .not. freeze_msg_done) then
+!$omp critical (freeze_msg)
+  if (.not. freeze_msg_done) then
+    write(*,'(A,2ES16.8)') ' [model199 element_matrix_fft] freeze_except_T ACTIVE; psi_axis, psi_bnd =', psi_axis, psi_bnd
+    freeze_msg_done = .true.
+  endif
+!$omp end critical (freeze_msg)
+endif
 
 GAMMA = 5.d0 / 3.d0
 
