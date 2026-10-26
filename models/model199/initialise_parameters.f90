@@ -43,6 +43,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 R_Z_psi_bnd_file,                                   &
                 R_boundary, Z_boundary, psi_boundary, n_boundary,   &
                 n_pfc, n_tor_fft_thresh, manipulate_psi_map,        &
+                freeze_except_T,                                    &
                 Rmin_pfc, Rmax_pfc, Zmin_pfc, Zmax_pfc, current_pfc,&
                 tokamak_device,                                     &
                 gvec_grid_import,                                   &

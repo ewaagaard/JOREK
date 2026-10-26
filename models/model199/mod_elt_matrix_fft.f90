@@ -423,6 +423,11 @@ do ms=1, n_gauss
          rhs_ij_6_k = - (ZK_par-ZK_prof) * BigR / BB2 * Bgrad_T_k_star * Bgrad_T * xjac * tstep &
                       - ZK_prof * BigR * (                + v_p*T0_p /BigR**2 )  * xjac * tstep
 
+         if (freeze_except_T) then   ! only T evolves: zero rhs of rows 1-5
+           rhs_ij_1 = 0.d0; rhs_ij_2 = 0.d0; rhs_ij_3 = 0.d0; rhs_ij_4 = 0.d0; rhs_ij_5 = 0.d0
+           rhs_ij_5_k = 0.d0
+         endif
+
          ij1 = index_ij
          ij2 = index_ij + 1
          ij3 = index_ij + 2
@@ -590,6 +595,16 @@ do ms=1, n_gauss
              amat_66_kn = + (ZK_par-ZK_prof) * BigR / BB2 * Bgrad_T_k_star * Bgrad_T_T_n * xjac * theta * tstep &
                           + ZK_prof * BigR   * (v_p*T_p /BigR**2 )                       * xjac * theta * tstep
 
+             if (freeze_except_T) then   ! rows 1-5: pure mass diagonal, no coupling -> delta = 0
+              amat_11 = v*psi*xjac; amat_12 = 0.d0; amat_13 = 0.d0; amat_16 = 0.d0
+              amat_21 = 0.d0; amat_22 = v*u*xjac; amat_23 = 0.d0; amat_24 = 0.d0; amat_25 = 0.d0; amat_26 = 0.d0
+              amat_31 = 0.d0; amat_33 = v*zj*xjac
+              amat_42 = 0.d0; amat_44 = v*w*xjac
+              amat_51 = 0.d0; amat_52 = 0.d0; amat_55 = v*rho*xjac
+
+              amat_12_n = 0.d0; amat_23_n = 0.d0
+              amat_51_k = 0.d0; amat_55_k = 0.d0; amat_55_n = 0.d0; amat_55_kn = 0.d0
+             endif
 
              kl1 = index_kl
              kl2 = index_kl + 1
