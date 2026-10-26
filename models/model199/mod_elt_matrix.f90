@@ -185,7 +185,7 @@ delta_t = delta_t * tstep / tstep_prev
 hyb_off = 1.d0
 if (hybrid_par) then
   if (n_tor > 1) then
-    write(*,*) 'ERROR: hybrid_par implemented for n_tor = 1 only (3D needs the Galerkin-in-phi q-space)'; stop
+        write(*,*) 'ERROR: hybrid_par with n_tor > 1 is implemented in element_matrix_fft only (global matrix, use gmres = .f.)'; stop
   endif
   hyb_off = 0.d0                                     ! switches off the conforming parallel term below
   n_tor_local = i_tor_max - i_tor_min + 1

@@ -69,7 +69,13 @@ real*8     :: theta, zeta, delta_u_x, delta_u_y
 logical    :: xpoint2
 logical, save :: freeze_msg_done = .false.
 
-
+! --- hybrid parallel conduction, Galerkin in phi ([G07] Eqs. 3-4 condensed):
+!     q-space = Q1(s,t) x {HZ(1..n_tor)}, i.e. nq = n_tor toroidal functions -> 4*n_tor q-dofs per element
+integer, parameter :: nqh = 4*n_tor, nph = n_vertex_max*n_degrees*n_tor
+real*8     :: Mh(nqh,nqh), Mk(nqh,nqh), Mtmp(nqh,nqh), GT0h(nqh), w0h(nqh), Mw0h(nqh)
+real*8     :: Gh(nqh,nph), Wh(nqh,nph), MWh(nqh,nph)
+real*8     :: cq(4), cqz(nqh), dV_h, sB_h, bA_h, bC_h, hyb_off, ps_n0(n_gauss,n_gauss)
+integer    :: ipiv_h(nqh), info_h, p_h, q_h, ih, jh, mh, nh, idx6_h(nph)
 
 integer*8  :: plan
 real*8     :: in_fft(1:n_plane)
@@ -109,9 +115,12 @@ RHS_k = 0.d0
 ELM   = 0.d0
 RHS   = 0.d0
 
+hyb_off = 1.d0
 if (hybrid_par) then
-  write(*,*) 'ERROR: hybrid_par is implemented in element_matrix (n_tor = 1) only, not in element_matrix_fft'; stop
+  hyb_off = 0.d0                                    ! switches off the conforming parallel term below
+  Mh = 0.d0; Mk = 0.d0; Gh = 0.d0; GT0h = 0.d0
 endif
+ps_n0 = 0.d0
 
 if (freeze_except_T .and. .not. freeze_msg_done) then
 !$omp critical (freeze_msg)
@@ -161,6 +170,8 @@ do i=1,n_vertex_max
        y_st(ms,mt) = y_st(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_st(i,j,ms,mt)
        y_tt(ms,mt) = y_tt(ms,mt) + nodes(i)%x(1,j,2) * element%size(i,j) * H_tt(i,j,ms,mt)
 
+       ps_n0(ms,mt) = ps_n0(ms,mt) + nodes(i)%values(1,j,1) * element%size(i,j) * H(i,j,ms,mt)   ! n = 0 psi only
+
        do mp=1,n_plane
 
          do k=1,n_var
@@ -191,7 +202,7 @@ do i=1,n_vertex_max
        
        if (keep_current_prof) &
          call current(xpoint2, xcase2, x_g(ms,mt),y_g(ms,mt), Z_xpoint, eq_g(1,1,ms,mt),psi_axis,psi_bnd,current_source(ms,mt))
-       call sources(xpoint2, xcase2, y_g(ms,mt), Z_xpoint, eq_g(1,1,ms,mt),psi_axis,psi_bnd,particle_source(ms,mt),heat_source(ms,mt))
+       call sources(xpoint2, xcase2, y_g(ms,mt), Z_xpoint, merge(ps_n0(ms,mt), eq_g(1,1,ms,mt), freeze_except_T),psi_axis,psi_bnd,particle_source(ms,mt),heat_source(ms,mt))
 
      enddo
    enddo
@@ -355,6 +366,20 @@ do ms=1, n_gauss
        endif
      endif
 
+     if (hybrid_par) then
+       cq = (/ 1.d0, xgauss(ms), xgauss(mt), xgauss(ms)*xgauss(mt) /)
+       do mh = 1, n_tor
+         cqz(4*(mh-1)+1:4*mh) = cq * HZ(mh,mp)               ! q functions c_k(s,t) Z_m(phi) at this point
+       enddo
+       dV_h = wst * BigR * xjac                               ! plane-local (on a 3D grid xjac, BigR depend on mp too)
+       sB_h = sqrt((F0*F0 + ps0_x*ps0_x + ps0_y*ps0_y)/BigR**2)
+       do q_h = 1, nqh
+         Mh(:,q_h) = Mh(:,q_h) + dV_h *                  cqz * cqz(q_h)
+         Mk(:,q_h) = Mk(:,q_h) + dV_h * (ZK_par-ZK_prof) * cqz * cqz(q_h)
+       enddo
+       GT0h = GT0h + dV_h * cqz * (F0/BigR*T0_p + T0_x*ps0_y - T0_y*ps0_x)/BigR / sB_h   ! b.grad T0, incl. d/dphi
+     endif
+
      do i=1,n_vertex_max
 
        do j=1,n_degrees
@@ -398,6 +423,15 @@ do ms=1, n_gauss
 
          BB2 = (F0*F0 + ps0_x * ps0_x + ps0_y * ps0_y )/BigR**2
 
+         if (hybrid_par) then
+           bA_h = Bgrad_T_star   / sqrt(BB2)                  ! in-plane part of b.grad(phi_ij)
+           bC_h = Bgrad_T_k_star / sqrt(BB2)                  ! coefficient of d/dphi:  b.grad(phi_ij Z_n) = bA Z_n + bC Z_n'
+           do nh = 1, n_tor
+             p_h = ((i-1)*n_degrees + (j-1))*n_tor + nh       ! local trial function (vertex i, dof j, harmonic n)
+             Gh(:,p_h) = Gh(:,p_h) + dV_h * cqz * (bA_h*HZ(nh,mp) + bC_h*HZ_p(nh,mp))
+           enddo
+         endif
+
          rhs_ij_1 =   v * eta_T  * (zj0 - current_source(ms,mt))/ BigR    * xjac * tstep &
                       + v * (ps0_s * u0_t - ps0_t * u0_s)                        * tstep &
                       - v * eps_cyl * F0 / BigR  * u0_p                   * xjac * tstep &          ! F0 due to absence of normalisation
@@ -429,12 +463,12 @@ do ms=1, n_gauss
          rhs_ij_6 =   v * BigR * heat_source(ms,mt)                               * xjac * tstep &
                     + v * BigR**2 * ( T0_s * u0_t - T0_t * u0_s)                         * tstep &
                     + v * 2.d0* (GAMMA-1.d0) * BigR * T0 * u0_y                   * xjac * tstep &
-                    - (ZK_par-ZK_prof) * BigR / BB2 * Bgrad_T_star * Bgrad_T      * xjac * tstep &
+                    - hyb_off * (ZK_par-ZK_prof) * BigR / BB2 * Bgrad_T_star * Bgrad_T      * xjac * tstep &
                     - ZK_prof * BigR * (v_x*T0_x + v_y*T0_y                     ) * xjac * tstep &
                     + zeta * v * delta_g(mp,6,ms,mt) * BigR                       * xjac         &
                     + v * (gamma-1.d0) * eta_T_ohm * (zj0 / BigR)**2.d0    * BigR * xjac * tstep
 
-         rhs_ij_6_k = - (ZK_par-ZK_prof) * BigR / BB2 * Bgrad_T_k_star * Bgrad_T * xjac * tstep &
+         rhs_ij_6_k = - hyb_off * (ZK_par-ZK_prof) * BigR / BB2 * Bgrad_T_k_star * Bgrad_T * xjac * tstep &
                       - ZK_prof * BigR * (                + v_p*T0_p /BigR**2 )  * xjac * tstep
 
          if (freeze_except_T) then   ! only T evolves: zero rhs of rows 1-5
@@ -587,9 +621,11 @@ do ms=1, n_gauss
              amat_61 = - (ZK_par-ZK_prof) * BigR * BB2_psi / BB2**2 * Bgrad_T_star     * Bgrad_T     * xjac * theta * tstep &
                        + (ZK_par-ZK_prof) * BigR / BB2              * Bgrad_T_star_psi * Bgrad_T     * xjac * theta * tstep &
                        + (ZK_par-ZK_prof) * BigR / BB2              * Bgrad_T_star     * Bgrad_T_psi * xjac * theta * tstep
+             amat_61 = hyb_off*amat_61
 
              amat_61_k = - (ZK_par-ZK_prof) * BigR * BB2_psi / BB2**2 * Bgrad_T_k_star * Bgrad_T     * xjac * theta * tstep &
                          + (ZK_par-ZK_prof) * BigR / BB2              * Bgrad_T_k_star * Bgrad_T_psi * xjac * theta * tstep
+             amat_61_k = hyb_off*amat_61_k
 
              amat_62 = - v * BigR**2 * ( T0_s * u_t - T0_t * u_s)                    * theta * tstep &
                        - v * 2.d0* (GAMMA-1.d0) * BigR * T0 * u_y             * xjac * theta * tstep
@@ -599,14 +635,16 @@ do ms=1, n_gauss
              amat_66 =   v * T   * BigR * xjac * (1.d0 + zeta)                                           &
                        - v * BigR**2 * ( T_s * u0_t - T_t * u0_s)                        * theta * tstep &
                        - v * 2.d0* (GAMMA-1.d0) * BigR * T * u0_y                 * xjac * theta * tstep &
-                       + (ZK_par-ZK_prof) * BigR / BB2 * Bgrad_T_star * Bgrad_T_T * xjac * theta * tstep &
+                       + hyb_off * (ZK_par-ZK_prof) * BigR / BB2 * Bgrad_T_star * Bgrad_T_T * xjac * theta * tstep &
                        + ZK_prof * BigR * ( v_x*T_x + v_y*T_y )                   * xjac * theta * tstep &
                        - v * T * (gamma-1.d0) * deta_dT_ohm * (zj0 / BigR)**2.d0  * BigR * xjac  * theta * tstep
 
              amat_66_k = + (ZK_par-ZK_prof) * BigR / BB2 * Bgrad_T_k_star * Bgrad_T_T    * xjac * theta * tstep
+             amat_66_k = hyb_off*amat_66_k
              amat_66_n = + (ZK_par-ZK_prof) * BigR / BB2 * Bgrad_T_star   * Bgrad_T_T_n  * xjac * theta * tstep
+             amat_66_n = hyb_off*amat_66_n
 
-             amat_66_kn = + (ZK_par-ZK_prof) * BigR / BB2 * Bgrad_T_k_star * Bgrad_T_T_n * xjac * theta * tstep &
+             amat_66_kn = + hyb_off * (ZK_par-ZK_prof) * BigR / BB2 * Bgrad_T_k_star * Bgrad_T_T_n * xjac * theta * tstep &
                           + ZK_prof * BigR   * (v_p*T_p /BigR**2 )                       * xjac * theta * tstep
 
              if (freeze_except_T) then   ! rows 1-5: pure mass diagonal, no coupling -> delta = 0
@@ -1009,6 +1047,41 @@ do j=1, n_vertex_max*n_var*n_degrees
   enddo
 
 enddo
+
+if (hybrid_par) then
+
+  ! --- (1) Eq. 3 per element: W = M^-1 G, w0 = M^-1 g0  (M: (Q1 x Fourier) mass matrix, 4*n_tor square)
+  Mtmp = Mh;  Wh = Gh
+  call dgesv(nqh, nph, Mtmp, nqh, ipiv_h, Wh, nqh, info_h)
+  if (info_h /= 0) then
+    write(*,*) 'ERROR hybrid_par: singular q mass matrix (n_plane too small for n_tor?), info =', info_h; stop
+  endif
+  Mtmp = Mh;  w0h = GT0h
+  call dgesv(nqh, 1, Mtmp, nqh, ipiv_h, w0h, nqh, info_h)
+
+  ! --- (2) conductivity weighting
+  MWh  = matmul(Mk, Wh)
+  Mw0h = matmul(Mk, w0h)
+
+  ! --- (3) ELM/RHS index (harmonic space) of the T equation of local function p = (vertex i, dof j, harmonic n)
+  do ih = 1, n_vertex_max
+    do jh = 1, n_degrees
+      do nh = 1, n_tor
+        p_h = ((ih-1)*n_degrees + (jh-1))*n_tor + nh
+        idx6_h(p_h) = n_tor*(n_var*n_degrees*(ih-1) + n_var*(jh-1) + 5) + nh     ! var 6 = T; as index_k/index_m above
+      enddo
+    enddo
+  enddo
+
+  ! --- (4) Eq. 4: K_par = W^T M_k W into the T-T block (all harmonic pairs), residual -K_par T0 into RHS
+  do p_h = 1, nph
+    RHS(idx6_h(p_h)) = RHS(idx6_h(p_h)) - tstep * dot_product(Wh(:,p_h), Mw0h)
+    do q_h = 1, nph
+      ELM(idx6_h(p_h), idx6_h(q_h)) = ELM(idx6_h(p_h), idx6_h(q_h)) + theta*tstep * dot_product(Wh(:,p_h), MWh(:,q_h))
+    enddo
+  enddo
+
+endif
 
 return
 end subroutine element_matrix_fft
