@@ -46,6 +46,7 @@ subroutine preset_parameters
   TiTe_ratio    = 0.5d0
 
   freeze_except_T = .false. ! for the 199 tests
+  hybrid_par = .false. ! testing the new Guenther scheme
 
   visco = 1.d-5
   T_max_visco   = 1.d99

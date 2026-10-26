@@ -961,6 +961,7 @@ module phys_module
   real*8              :: corr_neg_temp_coef(2) !< Parameters used in models/corr_neg.f90
   real*8              :: corr_neg_dens_coef(2) !< Parameters used in models/corr_neg.f90
   logical             :: freeze_except_T    !< Toy-model tests (model 199): only T evolves, rows psi,u,zj,w,rho frozen (delta = 0)
+  logical             :: hybrid_par         !< Toy tests (model 199, n_tor = 1): Guenter et al. 2007 hybrid parallel conduction (Eqs. 3-4, condensed)
 
   !> @name ECCD current sources
   real*8  :: jecamp             ! parameter, not to be confused with jec_source in element_matrix.f90
