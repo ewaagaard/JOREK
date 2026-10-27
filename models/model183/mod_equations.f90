@@ -152,6 +152,7 @@ module mod_equations
   type(const), private :: visco_num, visco_par, visco_par_par, visco_par_num, nu_phi_source, eta_num, D_perp_num, k_perp_num, gamma, reta
   type(const), private :: freeze_flag ! to freeze equations correctly, also in rhs_automatic.h
   type(const), private :: core_freeze ! freeze core artifically
+  type(const), private :: hyb_off     ! 0 if hybrid_par: Guenter scheme B replaces the conforming kappa_par terms
 
   type(algexpr), public  :: rhs_semianalytic(n_var)
   type(algexpr), public  :: amat_semianalytic(n_var, n_var)
@@ -200,6 +201,7 @@ module mod_equations
     gamma            = const(value = Igamma,            token = "gamma"        )
     freeze_flag      = const(value = 1.d0,              token = "freeze_flag"  )
     core_freeze      = const(value = 1.d0,              token = "core_freeze"  )
+    hyb_off          = const(value = 0.5d0,             token = "hyb_off"      )   ! 0.5, not 0 or 1: avoid any constant folding
     if (Ieta .ne. 0.d0) then
       reta           = const(value = eta_ohmic/Ieta,  token = "reta")
     else
@@ -402,7 +404,7 @@ module mod_equations
                                + gamma*v*rho0*i_T0*Bv_parderiv(vpar0)                                 & ! gamma p div(v_par) component
                                + gamma*v*rho0*i_T0*Bv_pbrack(vpar0, Psi0)                             & ! gamma p div(v_par) component 
                                + i_k_perp*gradprod(v,i_T0-i_T0_equil)                                 & ! K_perp grad(T)
-                               + (i_k_par-i_k_perp)*B0_parderiv(v)*B0_parderiv(i_T0-i_T0_equil)/B2    & ! (K_par - K_perp) grad_par(T)
+                               + hyb_off*(i_k_par-i_k_perp)*B0_parderiv(v)*B0_parderiv(i_T0-i_T0_equil)/B2    & ! (K_par - K_perp) grad_par(T)
                                + k_perp_num*Lap(v)*Lap(i_T0-i_T0_equil)                               & ! ad-hoc hyper-conductivity
                                + gamma*D_perp*i_T0*gradprod(v, rho0-rho0_equil)                             & ! D_perp T grad(rho)   ! TEMP 5/2 T Gamma_perp (for EMC3)
                                + gamma*(D_par - D_perp)*i_T0*B0_parderiv(v)*B0_parderiv(rho0-rho0_equil)/B2 & ! (D_par - D_perp) T grad_par(rho)   ! TEMP. Was 3/2 (EMC3)
@@ -411,7 +413,7 @@ module mod_equations
 
       amat_semianalytic(i_var, var_Psi)  = tstep*theta*(v*vpar0*Bv_pbrack(rho0*i_T0, Psi)            & ! v_par.grad(p) component
                                          + gamma*v*rho0*i_T0*Bv_pbrack(vpar0, Psi)                   & ! gamma p div(v_par) component 
-                                         + (i_k_par - i_k_perp)*gradDgrad_par(v,i_T0-i_T0_equil)     & ! (K_par - K_perp) grad_par(T)
+                                         + hyb_off*(i_k_par - i_k_perp)*gradDgrad_par(v,i_T0-i_T0_equil)     & ! (K_par - K_perp) grad_par(T)
                                          + gamma*(D_par - D_perp)*i_T0*gradDgrad_par(v,rho0-rho0_equil))     ! (D_par - D_perp) T grad_par(rho) ! TEMP 5/2 T Gamma_perp (for EMC3
 
       amat_semianalytic(i_var, var_Phi)  = tstep*theta*v*(Bv_pbrack(rho0*i_T0,Phi)                   & ! v_ExB.grad(p) component
@@ -435,8 +437,8 @@ module mod_equations
                                          + gamma*v*rho0*i_T*Bv_parderiv(vpar0)                               &  ! gamma p div(v_par) component
                                          + gamma*v*rho0*i_T*Bv_pbrack(vpar0, Psi0)                           &  ! gamma p div(v_par) component 
                                          + i_k_perp*gradprod(v,i_T)                                          &  ! K_perp grad(T)
-                                         + (i_k_par - i_k_perp)*B0_parderiv(v)*B0_parderiv(i_T)/B2           &  ! (K_par - K_perp) grad_par(T)
-                                         + i_dk_par_dT*i_T*B0_parderiv(v)*B0_parderiv(i_T0-i_T0_equil)/B2    &  ! (K_par - K_perp) grad_par(T)
+                                         + hyb_off*(i_k_par - i_k_perp)*B0_parderiv(v)*B0_parderiv(i_T)/B2           &  ! (K_par - K_perp) grad_par(T)
+                                         + hyb_off*i_dk_par_dT*i_T*B0_parderiv(v)*B0_parderiv(i_T0-i_T0_equil)/B2    &  ! (K_par - K_perp) grad_par(T)
                                          + k_perp_num*Lap(v)*Lap(i_T)                                        &  ! ad-hoc hyper-conductivity
                                          + gamma*D_perp*i_T*gradprod(v,rho0-rho0_equil)                            &  ! D_perp T grad(rho)  ! TEMP. Was 3/2 (EMC3)
                                          + gamma*(D_par - D_perp)*i_T*B0_parderiv(v)*B0_parderiv(rho0-rho0_equil)/B2) ! (D_par - D_perp) T grad_par(rho)  ! TEMP. Was 3/2 (EMC3)

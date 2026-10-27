@@ -110,6 +110,14 @@ real*8                                :: phi_source, dPhi_source_dpsi,dummy1,dum
 
 real*8, dimension(4), parameter  :: vr = (/1.,0.,1.,0./), vp = (/0.,1.,0.,1./), dur = (/1.,1.,0.,0./), dup = (/0.,0.,1.,1./)
 
+! --- Guenter 2007 hybrid parallel conduction (scheme B), Galerkin in phi: q in Q1(s,t) x {HZ(1..n_tor)}
+integer, parameter   :: nqh = 4*n_tor, nph = n_vertex_max*(n_order+1)*n_tor
+real*8,  allocatable :: hb_M(:,:), hb_Mk(:,:), hb_G(:,:), hb_MW(:,:)
+integer, allocatable :: hb_ipiv(:)
+real*8  :: hb_cq(4), hb_cqz(nqh), hb_dV, hb_dk, hb_Bm, hb_chi(3), hb_psi(3), hb_c1, hb_c2, hb_ux, hb_uy, hb_h, hb_T0(nph)
+integer :: kh, lh, nh, ph, qh, hb_info, hb_nt, hb_row(nph)
+logical, save :: hb_check_done = .false.
+
 eq => thread_eq(tid)%eq
 
 ELM_p = 0.d0; ELM_n = 0.d0; ELM_k = 0.d0; ELM_kn = 0.d0
@@ -117,6 +125,14 @@ RHS_p = 0.d0; RHS_k = 0.d0
 ELM   = 0.d0; RHS   = 0.d0
 rhs_ij  = 0.d0
 amat_ij = 0.d0
+
+if (hybrid_par) then
+  if (with_TiTe .or. n_order /= 3) then
+    write(*,*) 'ERROR hybrid_par: only single T and n_order = 3 (Q1 q-space) implemented'; stop
+  endif
+  allocate(hb_M(nqh,nqh), hb_Mk(nqh,nqh), hb_G(nqh,nph+1), hb_MW(nqh,nph+1), hb_ipiv(nqh))
+  hb_M = 0.d0; hb_Mk = 0.d0; hb_G = 0.d0
+endif
 
 ! --- Take time evolution parameters from phys_module
 theta = time_evol_theta
@@ -601,6 +617,40 @@ do ms=1, n_gauss
       ! Auxiliary variables (aux)
       call get_auxiliary(eq)
 
+      if (hybrid_par) then
+        hb_dV  = wst*BigR*xjac                                              ! same weight as rhs_ij/amat_ij
+        hb_Bm  = sqrt(eq(var_B2,0,0,0,1))
+        hb_dk  = eq(var_k_par,0,0,0,1) - eq(var_k_perp,0,0,0,1)             ! after the neg-thresh switches, as conforming
+        hb_chi = (/ eq(var_chi,1,0,0,1), eq(var_chi,0,1,0,1), eq(var_chi,0,0,1,1) /)
+        hb_psi = (/ eq(var_Psi,1,0,0,1), eq(var_Psi,0,1,0,1), eq(var_Psi,0,0,1,1) /)   ! already /F0
+        hb_cq  = (/ 1.d0, xgauss(ms), xgauss(mt), xgauss(ms)*xgauss(mt) /)
+        do nh = 1, n_tor
+          hb_cqz(4*nh-3:4*nh) = hb_cq*HZ(nh,mp)
+        enddo
+        do qh = 1, nqh
+          hb_M (:,qh) = hb_M (:,qh) + hb_dV      *hb_cqz*hb_cqz(qh)
+          hb_Mk(:,qh) = hb_Mk(:,qh) + hb_dV*hb_dk*hb_cqz*hb_cqz(qh)
+        enddo
+        ! g0 = int c b.grad(T0 - T0_equil), full phi derivative at fixed (R,Z)
+        hb_G(:,nph+1) = hb_G(:,nph+1) + hb_dV*hb_cqz/hb_Bm*hyb_b0par(                                 &
+             (/ eq(var_T,1,0,0,1)-eq(var_T_equil,1,0,0,1), eq(var_T,0,1,0,1)-eq(var_T_equil,0,1,0,1), &
+                eq(var_T,0,0,1,1)-eq(var_T_equil,0,0,1,1) /), hb_chi, hb_psi, BigR)
+        ! G: b.grad(H_kl Z_n) = c1 Z_n + c2 Z_n'   (c1: in-plane + moving-grid -x_p,-y_p part; c2: d/dphi coefficient)
+        do kh = 1, n_vertex_max
+          do lh = 1, n_order+1
+            hb_h  = H(kh,lh,ms,mt)*element%size(kh,lh)
+            hb_ux = ( y_t(mp,ms,mt)*h_s(kh,lh,ms,mt) - y_s(mp,ms,mt)*h_t(kh,lh,ms,mt))*element%size(kh,lh)/xjac
+            hb_uy = (-x_t(mp,ms,mt)*h_s(kh,lh,ms,mt) + x_s(mp,ms,mt)*h_t(kh,lh,ms,mt))*element%size(kh,lh)/xjac
+            hb_c1 = hyb_b0par((/ hb_ux, hb_uy, -hb_ux*x_p(mp,ms,mt) - hb_uy*y_p(mp,ms,mt) /), hb_chi, hb_psi, BigR)/hb_Bm
+            hb_c2 = hyb_b0par((/ 0.d0, 0.d0, hb_h /), hb_chi, hb_psi, BigR)/hb_Bm
+            do nh = 1, n_tor
+              ph = ((kh-1)*(n_order+1) + (lh-1))*n_tor + nh
+              hb_G(:,ph) = hb_G(:,ph) + hb_dV*hb_cqz*(hb_c1*HZ(nh,mp) + hb_c2*HZ_p(nh,mp))
+            enddo
+          enddo
+        enddo
+      endif
+
       do i=1,n_vertex_max
         do j=1,n_order+1
           do im=n_tor_start,n_tor_end
@@ -1005,9 +1055,44 @@ if (use_fft) then
       RHS(index+1) = RHS(index+1) + real(out_fft(k)) * float(mode(ik))
     end do
   end do
-else
-  return
-end if
+end if ! use fft
+
+if (hybrid_par) then
+  ! --- self-check (once): g0 must equal G . T0 exactly (tests G indexing, HZ/HZ_p and the moving-grid term)
+  if (.not. hb_check_done .and. .not. maintain_profiles) then
+    do kh = 1, n_vertex_max; do lh = 1, n_order+1; do nh = 1, n_tor
+      hb_T0(((kh-1)*(n_order+1) + (lh-1))*n_tor + nh) = nodes(kh)%values(nh,lh,var_T)
+    enddo; enddo; enddo
+    !$omp critical (hb_check)
+    write(*,'(A,2ES12.4)') ' [hybrid_par] check |g0 - G.T0|, |g0| =', &
+         maxval(abs(hb_G(:,nph+1) - matmul(hb_G(:,1:nph), hb_T0))), maxval(abs(hb_G(:,nph+1)))
+    hb_check_done = .true.
+    !$omp end critical (hb_check)
+  endif
+  ! --- Eq. 3: W = M^-1 G, w0 = M^-1 g0 (one factorisation; hb_G is overwritten by [W | w0])
+  call dgesv(nqh, nph+1, hb_M, nqh, hb_ipiv, hb_G, nqh, hb_info)
+  if (hb_info /= 0) then
+    write(*,*) 'ERROR hybrid_par: singular q mass matrix (n_plane too small for n_tor?), info =', hb_info; stop
+  endif
+  hb_MW = matmul(hb_Mk, hb_G)
+  ! --- row map, valid for the FFT (global) and direct (mode-family) layouts
+  hb_nt = i_tor_max - i_tor_min + 1
+  do kh = 1, n_vertex_max; do lh = 1, n_order+1; do nh = 1, n_tor
+    ph = ((kh-1)*(n_order+1) + (lh-1))*n_tor + nh
+    hb_row(ph) = 0
+    if (nh >= i_tor_min .and. nh <= i_tor_max) &
+      hb_row(ph) = hb_nt*(n_var*(n_order+1)*(kh-1) + n_var*(lh-1) + var_T - 1) + nh - i_tor_min + 1
+  enddo; enddo; enddo
+  ! --- Eq. 4: K = W^T M_k W into T-T (all harmonic pairs in range), residual -tstep*K T0 into RHS
+  do ph = 1, nph
+    if (hb_row(ph) == 0) cycle
+    RHS(hb_row(ph)) = RHS(hb_row(ph)) - tstep*dot_product(hb_G(:,ph), hb_MW(:,nph+1))
+    do qh = 1, nph
+      if (hb_row(qh) == 0) cycle
+      ELM(hb_row(ph),hb_row(qh)) = ELM(hb_row(ph),hb_row(qh)) + theta*tstep*dot_product(hb_G(:,ph), hb_MW(:,qh))
+    enddo
+  enddo
+endif
 
 return
 end subroutine element_matrix_fft
@@ -1033,6 +1118,15 @@ enddo
       
 return
 end subroutine my_fft
+
+! numeric twin of B0_parderiv
+pure real*8 function hyb_b0par(a, chi, psi, R)
+  implicit none
+  real*8, intent(in) :: a(3), chi(3), psi(3), R
+  hyb_b0par = a(1)*chi(1) + a(2)*chi(2) + a(3)*chi(3)/R**2                                &
+            + ((a(2)*psi(3) - a(3)*psi(2))*chi(1) + (a(3)*psi(1) - a(1)*psi(3))*chi(2)   &
+            +  (a(1)*psi(2) - a(2)*psi(1))*chi(3))/R
+end function hyb_b0par
 
 subroutine get_auxiliary(eq)
   use data_structure
@@ -1061,6 +1155,7 @@ subroutine get_rhs(rhs_ij, eq, psi_norm)
   real*8, dimension(:,:,:,:,:), pointer, intent(in) :: eq
   real*8, intent(in) :: psi_norm
   real*8     :: theta, zeta, reta, freeze_flag, core_freeze ! whether to freeze Psi (magnetic evolution)
+  real*8 :: hyb_off
   
   ! --- Take time evolution parameters from phys_module
   theta = time_evol_theta
@@ -1075,6 +1170,7 @@ subroutine get_rhs(rhs_ij, eq, psi_norm)
   freeze_flag = merge(1.d0, 0.d0, freeze_psi_dynamics)
   core_freeze = merge(0.5d0 - 0.5d0*tanh((psi_norm - core_freeze_s0)/core_freeze_sig), &
                        0.d0, use_core_freeze)
+  hyb_off = merge(0.d0, 1.d0, hybrid_par)
   
 #include "rhs_automatic.h"
 end subroutine
