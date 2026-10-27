@@ -139,7 +139,7 @@ program JOREK2
   integer, dimension(:), pointer :: local_elms => null()
   real*8                   :: zjz, E_min, E_max
   logical                  :: to_quit, freeb_equil2
-  integer*4                :: rank, comm_size 
+  integer*4                :: rank, comm_size
   real*8                   :: zn,  dn_dpsi,  dn_dz,  dn_dpsi2,  dn_dz2,  dn_dpsi_dz,  dn_dpsi3,  dn_dpsi_dz2,  dn_dpsi2_dz
   real*8                   :: zT,  dT_dpsi,  dT_dz,  dT_dpsi2,  dT_dz2,  dT_dpsi_dz,  dT_dpsi3,  dT_dpsi_dz2,  dT_dpsi2_dz
   real*8                   :: zTi, dTi_dpsi, dTi_dz, dTi_dpsi2, dTi_dz2, dTi_dpsi_dz, dTi_dpsi3, dTi_dpsi_dz2, dTi_dpsi2_dz

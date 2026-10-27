@@ -21,6 +21,7 @@ use equil_info, only : get_psi_n, ES
   use mod_impurity
 #endif
 use mod_sources
+use mod_parameters, only: n_coord_tor
 
 implicit none
 
@@ -66,6 +67,19 @@ integer    :: spi_i, i_inj
 !> Minimum and maximum of the variable
 real*8,dimension(n_var),intent(out) :: varminout,varmaxout
 real*8,dimension(n_var) :: varmin,varmax
+
+#if STELLARATOR_MODEL
+if (n_coord_tor .le. 1) then
+  if (my_id .eq. 0) write(*,*) "INFO: Integrals_3D skipped for stellarator model with n_coord_tor=1"
+  density_tot = 0.d0; density_in = 0.d0; density_out = 0.d0
+  pressure    = 0.d0; pressure_in = 0.d0; pressure_out = 0.d0
+  kin_par_tot = 0.d0; kin_par_in  = 0.d0; kin_par_out  = 0.d0
+  mom_par_tot = 0.d0; mom_par_in  = 0.d0; mom_par_out  = 0.d0
+  varminout   = 0.d0
+  varmaxout   = 0.d0
+  return
+end if
+#endif
 
 call MPI_COMM_SIZE(MPI_COMM_WORLD, n_mpi, ierr) ! number of MPI procs
 

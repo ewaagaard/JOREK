@@ -71,6 +71,25 @@ subroutine preset_parameters
   j_cutoff_rcoord = 99.0
   j_cutoff_sig = 0.025
   bloating_factor = 1.0d0
+  freeze_psi_dynamics = .false.
+  use_core_freeze  = .false.   ! mirrors freeze_psi_dynamics's own convention exactly
+  core_freeze_s0   = 0.30d0    ! meaningful physical default now, not a disabling trick
+  core_freeze_sig = 0.02d0
+  zkpar_picard = .false. 
+  decay_bc_enable = .false.  ! Robinson BC for decay length condition, like EMC3
+  decay_lambda_T = 0.04d0
+  decay_lambda_n = 0.03d0
+  decay_R0 = 5.9d0
+  decay_rmin = 0.68d0
+  decay_conv = 0.d0 ! only conduction by default
+
+  ! Stellarator SBC defaults
+  vpar_sbc_enable = .false.
+  vpar_sbc_alpha0 = 5.d0      ! 5 degree transition angle
+  vpar_sbc_T_floor = 1.d-4   ! Minimum T_local used when computing the v_par SBC T-derivative 
+                             ! to protect against against 1/cs, does not affect target value itself  
+  particle_flux_sbc_enable = .false.
+  heat_flux_sbc_enable = .false.
 
   freeboundary_equil = .false. ! use free or fixed boundary equilibrium
   freeboundary       = .false. ! use free or fixed boundary?

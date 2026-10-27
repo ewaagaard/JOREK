@@ -283,6 +283,14 @@ n_mpi = max(n_mpi,1)
 n_mpi = 1
 #endif
 
+#if STELLARATOR_MODEL
+if (n_coord_tor .le. 1) then
+  if (my_id .eq. 0) write(*,*) &
+    "INFO: int3d_new skipped: n_coord_tor=1 incompatible with stellarator integral path"
+  return
+end if
+#endif
+
 if (my_id .eq. 0) then
   write(*,*) '***************************************'
   write(*,*) '* Integrals  (3D)                     *'
@@ -461,7 +469,7 @@ Tie_min_neg = 0.5*T_min_neg
 !$omp          eta_ohmic, central_mass, R2curr_tmp, Zcurr_tmp, ksi_ion,                                       &
 !$omp          local_mom_par_int, local_mom_par_ext, local_mom_par_tot,                                       &
 !$omp          use_ncs, use_ics, local_Nion, local_Nrec, local_Prec, local_Prb, local_Prb_cooling,            &
-!$omp          local_aux_mom_par_int,local_aux_mom_par_ext,local_aux_mom_par_tot, n_aux_var,                  &
+!$omp          local_aux_mom_par_int,local_aux_mom_par_ext,local_aux_mom_par_tot, n_aux_var, bloating_factor, &
 !$omp          rho_idx_kin, mom_par_idx_kin,                                                                  &
 !$omp          local_pn_e, local_pn_i, local_pn,                                                              &
 #ifdef WITH_TiTe
@@ -567,7 +575,7 @@ omp_tid      = 0
 !$omp                local_aux_mom_par_int,local_aux_mom_par_ext,local_aux_mom_par_tot,       &
 !$omp                local_mom_par_int, local_mom_par_ext, local_mom_par_tot,                        &
 !$omp                heli_tot, mag_wk_tot, vpar_disp_tot, thm_wk_tot, area1, mag_src_tot,H_impl_int,H_impl_ext, &
-!$omp                fric_disp_tot, R2curr_tmp, Zcurr_tmp, C_intern_3d, C_ext_3d, vprp_disp_tot)
+!$omp                fric_disp_tot, R2curr_tmp, Zcurr_tmp, C_intern_3d, C_ext_3d, vprp_disp_tot, bloating_factor)
 
 do ife = ife_min, ife_max
   element = element_list%element(ife)
@@ -2526,9 +2534,14 @@ surface_list%psi_values(2) = ES%psi_axis + (ES%psi_bnd - ES%psi_axis) * 0.02d0
 surface_list%psi_values(3) = ES%psi_axis + (ES%psi_bnd - ES%psi_axis) * 0.95d0 
 surface_list%psi_values(4) = ES%psi_axis + (ES%psi_bnd - ES%psi_axis) * 0.99d0
 
-call find_flux_surfaces(my_id,xpoint, xcase, node_list, element_list, surface_list)
-call determine_q_profile(node_list, element_list, surface_list, ES%psi_axis, ES%psi_xpoint,    &
+if (.not. freeze_psi_dynamics) then
+  call find_flux_surfaces(my_id,xpoint, xcase, node_list, element_list, surface_list)
+  call determine_q_profile(node_list, element_list, surface_list, ES%psi_axis, ES%psi_xpoint,    &
      ES%Z_xpoint, qval, radav)
+else
+  qval  = 0.d0          ! Psi frozen (stellarator stage 1): no Psi flux surfaces, q not defined
+  radav = 0.d0
+endif
 
 q02 = qval(2)
 q95 = qval(3)

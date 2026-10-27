@@ -43,6 +43,11 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 n_pfc, n_tor_fft_thresh, manipulate_psi_map,        &
                 Rmin_pfc, Rmax_pfc, Zmin_pfc, Zmax_pfc, current_pfc,&
                 tokamak_device, gvec_grid_import,bloating_factor,   &
+                freeze_psi_dynamics,                                &
+                use_core_freeze, core_freeze_s0, core_freeze_sig,   &
+                zkpar_picard,                                       &
+                decay_bc_enable, decay_lambda_T, decay_lambda_n,    &
+                decay_R0, decay_rmin, decay_conv,                   &
                 F0, gamma_sheath, density_reflection,               &
                 zjz_0, zjz_1, zj_coef,                              &
                 rho_0, rho_1, rho_coef,                             &
@@ -56,6 +61,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 maintain_profiles,                                  &
                 particlesource, heatsource,                         &
                 heatsource_i, heatsource_e, tauIC,                  &
+                loop_voltage,                                       &
                 eta_num, visco_num, visco_par_num, D_perp_num,      &
                 ZK_perp_num,                                        &
                 pellet_amplitude, pellet_R, pellet_Z, pellet_phi,   &
@@ -75,6 +81,9 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 resistive_wall,                                     &
                 wall_resistivity, wall_resistivity_fact,            &
                 bc_natural_open,                                    &
+                vpar_sbc_enable, vpar_sbc_alpha0, vpar_sbc_T_floor, &
+                particle_flux_sbc_enable, heat_flux_sbc_enable,     &
+                min_sheath_angle,                                   &
                 use_mumps_eq, use_pastix_eq, use_strumpack_eq,      &
                 use_mumps_prj, use_pastix_prj, use_strumpack_prj,   &
                 use_mumps, mumps_ordering,                          &
@@ -111,6 +120,7 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 time_evol_scheme, corr_neg_temp_coef,               &
                 corr_neg_dens_coef, D_prof_neg, ZK_prof_neg,        &
                 D_prof_neg_thresh, ZK_prof_neg_thresh, T_min,       &
+                T_min_neg, rho_min_neg,                             &
                 amix, amix_freeb, equil_accuracy,                   &
                 equil_accuracy_freeb, current_ref, FB_Ip_position,  &
                 FB_Ip_integral, Z_axis_ref, FB_Zaxis_position,      &
@@ -129,9 +139,18 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 weights_per_family, autodistribute_ranks,           &
                 ranks_per_family,                                   &
                 use_manual_random_seed, manual_seed,                &
-                use_fixed_rng_value, fixed_rng_value                                 
+                use_fixed_rng_value, fixed_rng_value,                &
+                tstep_particles, nstep_particles,                   &
+                nsubstep_particles, nout_particles,                 &
+                restart_particles, init_particles_only,             &
+                filter_perp,    filter_hyper,    filter_par,        &
+                filter_perp_n0, filter_hyper_n0, filter_par_n0,     &
+                apply_dirichlet_proj,                               &
+                n_part_groups, part_group_configs,                  &
+                part_groups_in_use, valves, fluid_configs,          &
+                fix_kinetic_Te, fixed_Te_eV
 
-                
+
 namelist /dommcoef/  R_domm, dcoef
 
 if (my_id .eq. 0) then

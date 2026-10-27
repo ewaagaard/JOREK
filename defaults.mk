@@ -172,7 +172,7 @@ ifeq (model750, $(MODEL))
 endif
 
 CGDEP= generate_code                         # Pre-compute analytic expressions from mod_equations for performance
-USE_DOMM ?= 1
+USE_DOMM ?= 0
 ifeq ($(USE_DOMM), 1)
   DEFINES := $(DEFINES) -DUSE_DOMM              # Use Dommaschk potentials, without FE correction of n.B on boundary 
 endif
@@ -355,6 +355,10 @@ ifeq (1, $(USE_STDLIB))
   LIBS     := $(LIBS) $(LIB_STDLIB)
   INCLUDES := $(INCLUDES) $(INC_STDLIB)
   DEFINES  := $(DEFINES) -DUSE_STDLIB
+endif
+
+ifeq (1, $(POINC_GVEC))
+  DEFINES := $(DEFINES) -DPOINC_GVEC
 endif
 
 # Do not check to make these files to speed up and clean -d output

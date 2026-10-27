@@ -97,6 +97,9 @@ subroutine setup_solvers(this, sim)
   use vacuum_equilibrium,   only: import_external_fields
   use mod_startup_teardown, only: sanity_checks
   use mod_log_params,       only: log_parameters
+#if STELLARATOR_MODEL
+  use mod_chi, only: compute_chi_on_gauss_points
+#endif
 
   implicit none
 
@@ -235,7 +238,17 @@ subroutine setup_solvers(this, sim)
   call update_deltas(this%mhd_sim%node_list,this%deltas)
                                    
   call global_matrix_structure(this%mhd_sim%node_list, this%mhd_sim%element_list, this%mhd_sim%bnd_elm_list, this%mhd_sim%freeboundary,&
-                                 this%mhd_sim%local_elms, this%mhd_sim%n_local_elms, this%a_mat, i_tor_min=1, i_tor_max=n_tor)                                   
+                                 this%mhd_sim%local_elms, this%mhd_sim%n_local_elms, this%a_mat, i_tor_min=1, i_tor_max=n_tor)                        
+
+#if STELLARATOR_MODEL
+  ! Precompute vacuum field chi on Gauss points for stellarator element matrix.
+  ! In jorek2_main this is called explicitly after distribute_nodes_elements.
+  ! kinetic_main uses this action, so we need to call it here instead.
+  call compute_chi_on_gauss_points(sim%my_id, sim%fields%element_list, &
+                                    sim%fields%node_list, &
+                                    this%mhd_sim%local_elms, &
+                                    this%mhd_sim%n_local_elms)
+#endif           
 
   call MPI_Barrier(MPI_COMM_WORLD,ierr)
   
@@ -472,18 +485,30 @@ subroutine do_jorek_timestep(this, sim, ev)
 
     if (index_now > index_start+1) then
       if (n_tor .gt. 1) then
-        Growth_mag  = 0.5d0*log(abs(energies(n_tor,1,index_now)/energies(n_tor,1,index_now-1)))/ tstep
-        Growth_kin  = 0.5d0*log(abs(energies(n_tor,2,index_now)/energies(n_tor,2,index_now-1)))/ tstep
+        if (energies(n_tor,1,index_now) .ne. 0.d0 .and. &
+            energies(n_tor,1,index_now-1) .ne. 0.d0) then
+          Growth_mag  = 0.5d0*log(abs(energies(n_tor,1,index_now)/energies(n_tor,1,index_now-1)))/ tstep
+          Growth_kin  = 0.5d0*log(abs(energies(n_tor,2,index_now)/energies(n_tor,2,index_now-1)))/ tstep
+        else
+          Growth_mag  = 0.d0
+          Growth_kin  = 0.d0
+        end if
       else
-        Growth_mag  = 0.d0
-        Growth_kin  = 0.d0
-      endif
+          Growth_mag  = 0.d0
+          Growth_kin  = 0.d0
+      end if
       if (linear_run) then
         Growth_mag0 = 0.d0
         Growth_kin0 = 0.d0
       else
-        Growth_mag0 = 0.5d0*log(abs(energies(1,1,index_now)/energies(1,1,index_now-1)))/ tstep
-        Growth_kin0 = 0.5d0*log(abs(energies(1,2,index_now)/energies(1,2,index_now-1)))/ tstep
+        if (energies(1,1,index_now) .ne. 0.d0 .and. &
+            energies(1,1,index_now-1) .ne. 0.d0) then
+          Growth_mag0 = 0.5d0*log(abs(energies(1,1,index_now)/energies(1,1,index_now-1)))/ tstep
+          Growth_kin0 = 0.5d0*log(abs(energies(1,2,index_now)/energies(1,2,index_now-1)))/ tstep
+        else
+          Growth_mag0 = 0.d0
+          Growth_kin0 = 0.d0
+        end if
       endif
       write(*,131) 'Growth_mag,_kin =', Growth_mag0, Growth_mag, Growth_kin0, Growth_kin
     endif

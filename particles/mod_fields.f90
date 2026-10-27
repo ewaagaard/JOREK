@@ -276,7 +276,7 @@ subroutine calc_NeTeTi(fields,time,i_elm,st,phi,                   &
 #else
   real*8, dimension(2) :: P, P_s, P_t, P_phi, P_time
 #endif
-  real*8               :: R, R_s, R_t, Z, Z_s, Z_t, xjac
+  real*8               :: R, R_s, R_t, R_phi, Z, Z_s, Z_t, Z_phi, xjac
   real*8               :: inv_xjac, inv_R
   real*8               :: T_norm, n_norm, n_e_temp
   real*8               :: T_i_temp, T_e_temp
@@ -301,15 +301,29 @@ subroutine calc_NeTeTi(fields,time,i_elm,st,phi,                   &
 
   ! interpolate fields
 #ifdef WITH_TiTe
+  ii_Ti = 2; ii_Te = 3
+#if STELLARATOR_MODEL
+  call fields%interp_PRZP_1(time,i_elm,[var_rho,var_Ti,var_Te],3,st(1),st(2),phi, &
+                            P,P_s,P_t,P_phi,P_time,                               &
+                            R,R_s,R_t,R_phi,Z,Z_s,Z_t,Z_phi)
+#else
+  R_phi = 0.d0; Z_phi = 0.d0
   call fields%interp_PRZ(time,i_elm,[var_rho,var_Ti,var_Te],3,st(1),st(2),phi, &
                          P,P_s,P_t,P_phi,P_time,                               &
                          R,R_s,R_t,Z,Z_s,Z_t)
-  ii_Ti = 2; ii_Te = 3
+#endif
 #else
+  ii_Ti = 2; ii_Te = 2
+#if STELLARATOR_MODEL
+  call fields%interp_PRZP_1(time,i_elm,[var_rho,var_T],2,st(1),st(2),phi, &
+                            P,P_s,P_t,P_phi,P_time,                       &
+                            R,R_s,R_t,R_phi,Z,Z_s,Z_t,Z_phi)
+#else
+  R_phi = 0.d0; Z_phi = 0.d0
   call fields%interp_PRZ(time,i_elm,[var_rho,var_T],2,st(1),st(2),phi,         &
                          P,P_s,P_t,P_phi,P_time,                               &
                          R,R_s,R_t,Z,Z_s,Z_t)
-  ii_Ti = 2; ii_Te = 2
+#endif
 #endif
 
   ! density
@@ -341,30 +355,34 @@ subroutine calc_NeTeTi(fields,time,i_elm,st,phi,                   &
     
     if (.not. with_TiTe) then
       ! 1-T case
-      tmp_g = grad_of(ii_Te, inv_xjac, inv_R, R_s, R_t, Z_s, Z_t, P_s, P_t, P_phi, T_norm)
+      tmp_g = grad_of(ii_Te, inv_xjac, inv_R, R_s, R_t, R_phi, Z_s, Z_t, Z_phi, P_s, P_t, P_phi, T_norm)
       if (present(grad_T_e)) grad_T_e = tmp_g
       if (present(grad_T_i)) grad_T_i = tmp_g
     else
       ! 2-T case
-      if (present(grad_T_i)) grad_T_i = grad_of(ii_Ti, inv_xjac, inv_R, R_s, R_t, Z_s, Z_t, P_s, P_t, P_phi, T_norm)
-      if (present(grad_T_e)) grad_T_e = grad_of(ii_Te, inv_xjac, inv_R, R_s, R_t, Z_s, Z_t, P_s, P_t, P_phi, T_norm)
+      if (present(grad_T_i)) grad_T_i = grad_of(ii_Ti, inv_xjac, inv_R, R_s, R_t, R_phi, Z_s, Z_t, Z_phi, P_s, P_t, P_phi, T_norm)
+      if (present(grad_T_e)) grad_T_e = grad_of(ii_Te, inv_xjac, inv_R, R_s, R_t, R_phi, Z_s, Z_t, Z_phi, P_s, P_t, P_phi, T_norm)
     end if
   end if
   
   contains
 
     ! Helper function using suffix to avoid masking parent variables
-    pure function grad_of(ii_, inv_xjac_, inv_R_, R_s_, R_t_, Z_s_, Z_t_, &
+    pure function grad_of(ii_, inv_xjac_, inv_R_, R_s_, R_t_, R_phi_, Z_s_, Z_t_, Z_phi_, &
                           P_s_, P_t_, P_phi_, T_norm_) result(g)
       integer, intent(in)             :: ii_
       real*8, intent(in)              :: inv_xjac_, inv_R_, T_norm_
-      real*8, intent(in)              :: R_s_, R_t_, Z_s_, Z_t_
+      real*8, intent(in)              :: R_s_, R_t_, R_phi_, Z_s_, Z_t_, Z_phi_
       real*8, intent(in)              :: P_s_(:), P_t_(:), P_phi_(:)
       real*8                          :: g(3)
   
-      g(1) = T_norm_ * ((  P_s_(ii_) * Z_t_ - P_t_(ii_) * Z_s_) * inv_xjac_)
-      g(2) = T_norm_ * ((- P_s_(ii_) * R_t_ + P_t_(ii_) * R_s_) * inv_xjac_)
-      g(3) = T_norm_ * (   P_phi_(ii_) * inv_R_ )
+      g(1) = (  P_s_(ii_) * Z_t_ - P_t_(ii_) * Z_s_) * inv_xjac_  ! derivative in R
+      g(2) = (- P_s_(ii_) * R_t_ + P_t_(ii_) * R_s_) * inv_xjac_  ! derivative in Z
+      g(3) =    P_phi_(ii_) - R_phi_ * g(1) - Z_phi_ * g(2)        ! derivative in phi
+
+      ! Normalizations
+      g = g * T_norm_
+      g(3) = g(3) * inv_R_
     end function grad_of
 
 end subroutine calc_NeTeTi
@@ -383,10 +401,15 @@ subroutine calc_NeTevpar(fields, time, i_elm, st, phi, n_e, T_e, vpar, grad_T_e)
 
   real*8, dimension(3) :: P, P_s, P_t, P_phi, P_time
   real*8               :: R, R_s, R_t, Z, Z_s, Z_t, xjac
+#if STELLARATOR_MODEL
+  real*8               :: R_phi, Z_phi
+#endif
   real*8               :: T_norm !< temperature normalisation
   real*8               :: v_norm !< vpar normalisation
 
-#if (JOREK_MODEL == 400)
+#if STELLARATOR_MODEL
+  call fields%interp_PRZP_1(time,i_elm,[5,6,7],3,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,R_phi,Z,Z_s,Z_t,Z_phi)
+#elif (JOREK_MODEL == 400)
   ! electron temperature
   call fields%interp_PRZ(time,i_elm,[5,8,7],3,st(1),st(2),phi,P,P_s,P_t,P_phi,P_time,R,R_s,R_t,Z,Z_s,Z_t)
 #else
@@ -407,9 +430,14 @@ subroutine calc_NeTevpar(fields, time, i_elm, st, phi, n_e, T_e, vpar, grad_T_e)
   if (present(grad_T_e)) then
 
     xjac = jac(R_s,R_t,Z_s,Z_t)
-    grad_T_e = T_norm*[(  P_s(2) * Z_t - P_t(2) * Z_s)/ xjac, &
-                     (- P_s(2) * R_t + P_t(2) * R_s)/ xjac, &
-                     P_phi(2)/R]
+    grad_T_e(1:2) = [(  P_s(2) * Z_t - P_t(2) * Z_s ) / xjac, &
+                     (- P_s(2) * R_t + P_t(2) * R_s ) / xjac]
+#if STELLARATOR_MODEL
+    grad_T_e(3)   = (P_phi(2) - R_phi*grad_T_e(1) - Z_phi*grad_T_e(2)) / R ! division by R to get correct units
+#else
+    grad_T_e(3)   = P_phi(2)/R
+#endif
+    grad_T_e = T_norm * grad_T_e
   end if
 end subroutine calc_NeTevpar
 
@@ -556,15 +584,23 @@ integer, parameter :: i_var(3) = [1,2,7]
 real*8             :: P(3), P_s(3), P_t(3), P_phi(3), P_time(3) ! Placeholder for evaluating variables and derivatives locally
 ! Values
 real*8             :: R, R_s, R_t, Z, Z_s, Z_t
+#if STELLARATOR_MODEL
+  real*8 :: R_phi, Z_phi
+#endif
 ! Others
 real*8             :: inv_st_jac, R_inv
 real*8             :: psi_R, psi_Z, U_R, U_Z, U_phi, t_norm
 real*8             :: vpar, v_R, v_Z, v_phi
 t_norm  = sqrt(mu_zero * ATOMIC_MASS_UNIT * central_mass * central_density * 1.d20) ! 1 jorek time unit in seconds
 
-! Interpolate the fields to get psi and U at the current position (and the
-! changes u_n - u(n-1))
-call fields%interp_PRZ(time, i_elm, i_var, 3, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
+#if STELLARATOR_MODEL
+  call fields%interp_PRZP_1(time, i_elm, i_var, 3, st(1), st(2), phi, &
+       P, P_s, P_t, P_phi, P_time, R, R_s, R_t, R_phi, Z, Z_s, Z_t, Z_phi)
+#else
+  ! Interpolate the fields to get psi and U at the current position (and the
+  ! changes u_n - u(n-1))
+  call fields%interp_PRZ(time, i_elm, i_var, 3, st(1), st(2), phi, P, P_s, P_t, P_phi, P_time, R, R_s, R_t, Z, Z_s, Z_t)
+#endif
 
 R_inv = 1.d0/R
 inv_st_jac = 1.d0/jac(R_s,R_t,Z_s,Z_t)
@@ -574,7 +610,13 @@ psi_R    = (  P_s(1) * Z_t - P_t(1) * Z_s ) * inv_st_jac
 psi_Z    = (- P_s(1) * R_t + P_t(1) * R_s ) * inv_st_jac
 U_R      = (  P_s(2) * Z_t - P_t(2) * Z_s ) * inv_st_jac
 U_Z      = (- P_s(2) * R_t + P_t(2) * R_s ) * inv_st_jac
-U_phi    = P_phi(2)
+#if STELLARATOR_MODEL
+  ! Chain-rule correction
+  U_phi = P_phi(2) - R_phi * U_R - Z_phi * U_Z
+#else
+  U_phi = P_phi(2)
+#endif
+
 
 ! Calculate the velocity vector (see http://jorek.eu/wiki/doku.php?id=reduced_mhd)
 vpar  = P(3)
@@ -877,12 +919,12 @@ subroutine check_consistency_RK4(fields, i_elm, st)
 
   R_p = R + delta
   Z_p = Z
-  call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_p, Z_p, st_p(1), st_p(2), i_elm_p, ifail)
+  call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_p, Z_p, st_p(1), st_p(2), i_elm_p, ifail, phi=phi)
   call calc_RK4(fields, time, i_elm_p, st_p, phi, A_p, dA_p, B_p, dB_p, Bnorm_p, dBnorm_p, bn_p, dBn_p, E_p)
 
   R_m =  R - delta
   Z_m = Z
-  call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_m, Z_m, st_m(1), st_m(2), i_elm_m, ifail)
+  call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_m, Z_m, st_m(1), st_m(2), i_elm_m, ifail, phi=phi)
   call calc_RK4(fields, time, i_elm_m, st_m, phi, A_m, dA_m, B_m, dB_m, Bnorm_m, dBnorm_m, bn_m, dBn_m, E_m)
 
   if (verbose) then
@@ -906,12 +948,12 @@ subroutine check_consistency_RK4(fields, i_elm, st)
 
   R_p = R
   Z_p = Z + delta
-  call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_p, Z_p, st_p(1), st_p(2), i_elm_p, ifail)
+  call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_p, Z_p, st_p(1), st_p(2), i_elm_p, ifail, phi=phi)
   call calc_RK4(fields, time, i_elm_p, st_p, phi, A_p, dA_p, B_p, dB_p, Bnorm_p, dBnorm_p, bn_p, dBn_p, E_p)
 
   R_m =  R
   Z_m = Z - delta
-  call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_m, Z_m, st_m(1), st_m(2), i_elm_m, ifail)
+  call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_m, Z_m, st_m(1), st_m(2), i_elm_m, ifail, phi=phi)
   call calc_RK4(fields, time, i_elm_m, st_m, phi, A_m, dA_m, B_m, dB_m, Bnorm_m, dBnorm_m, bn_m, dBn_m, E_m)
 
   if (verbose) then
@@ -936,13 +978,13 @@ subroutine check_consistency_RK4(fields, i_elm, st)
 R_p = R 
 Z_p = Z
 phi_p = phi + delta
-call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_p, Z_p, st_p(1), st_p(2), i_elm_p, ifail)
+call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_p, Z_p, st_p(1), st_p(2), i_elm_p, ifail, phi=phi_p)
 call calc_RK4(fields, time, i_elm_p, st_p, phi_p, A_p, dA_p, B_p, dB_p, Bnorm_p, dBnorm_p, bn_p, dBn_p, E_p)
 
 R_m = R
 Z_m = Z
 phi_m = phi - delta
-call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_m, Z_m, st_m(1), st_m(2), i_elm_m, ifail)
+call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_m, Z_m, st_m(1), st_m(2), i_elm_m, ifail, phi=phi_m)
 call calc_RK4(fields, time, i_elm_m, st_m, phi_m, A_m, dA_m, B_m, dB_m, Bnorm_m, dBnorm_m, bn_m, dBn_m, E_m)
 
 if (verbose) then
@@ -1282,12 +1324,12 @@ subroutine check_consistency_Qin(fields, i_elm, st)
 
   R_p = R + delta
   Z_p = Z
-  call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_p, Z_p, st_p(1), st_p(2), i_elm_p, ifail)
+  call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_p, Z_p, st_p(1), st_p(2), i_elm_p, ifail, phi=phi)
   call calc_Qin(fields, time, i_elm_p, st_p, phi, A_p, dA_p, B_p, dB_p, Bnorm_p, dBnorm_p, bn_p, dBn_p, E_p)
 
   R_m =  R - delta
   Z_m = Z
-  call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_m, Z_m, st_m(1), st_m(2), i_elm_m, ifail)
+  call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_m, Z_m, st_m(1), st_m(2), i_elm_m, ifail, phi=phi)
   call calc_Qin(fields, time, i_elm_m, st_m, phi, A_m, dA_m, B_m, dB_m, Bnorm_m, dBnorm_m, bn_m, dBn_m, E_m)
 
   if (verbose) then
@@ -1311,12 +1353,12 @@ subroutine check_consistency_Qin(fields, i_elm, st)
 
   R_p = R
   Z_p = Z + delta
-  call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_p, Z_p, st_p(1), st_p(2), i_elm_p, ifail)
+  call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_p, Z_p, st_p(1), st_p(2), i_elm_p, ifail, phi=phi)
   call calc_Qin(fields, time, i_elm_p, st_p, phi, A_p, dA_p, B_p, dB_p, Bnorm_p, dBnorm_p, bn_p, dBn_p, E_p)
 
   R_m =  R
   Z_m = Z - delta
-  call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_m, Z_m, st_m(1), st_m(2), i_elm_m, ifail)
+  call find_RZ_nearby(fields%node_list, fields%element_list, R, Z, st(1), st(2), i_elm, R_m, Z_m, st_m(1), st_m(2), i_elm_m, ifail, phi=phi)
   call calc_Qin(fields, time, i_elm_m, st_m, phi, A_m, dA_m, B_m, dB_m, Bnorm_m, dBnorm_m, bn_m, dBn_m, E_m)
 
   if (verbose) then

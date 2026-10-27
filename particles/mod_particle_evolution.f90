@@ -257,6 +257,8 @@ contains
   subroutine evolve_ncs_ics(sim, group_num, feedback_rhs, feedback_nodelist, feedback_element_list, rng, tstep_part_adj, nstep_part_adj, imp_q_idx)
     use mod_collisions
     use mod_ionisation_recombination
+    use phys_module, only: fix_kinetic_Te, fixed_Te_eV
+    use constants,   only: EL_CHG, K_BOLTZ  
 
     implicit none
     class(particle_sim),       target, intent(inout)          :: sim
@@ -340,6 +342,7 @@ contains
 #endif
     !$omp schedule(runtime)                                                                               &
     !$omp shared(sim, group_num, nstep_part_adj, tstep_part_adj, rng,                                    &
+    !$omp fix_kinetic_Te, fixed_Te_eV,                                                                    & 
     !$omp rho_norm, t_norm, v_norm, E_norm, M_norm, N_norm, part_kill_ratio,                              &    
     !$omp rho_idx_kin, mom_par_idx_kin,                                                                   &
 #ifdef WITH_TiTe
@@ -400,6 +403,15 @@ contains
           limits = (n_e_raw .le. 1e14) .or. (T_e_raw * K_BOLTZ / EL_CHG .le. 1.d0)
           limits_coll = T_e_raw * K_BOLTZ / EL_CHG < 1.d0 !< limits for collisions
 #endif
+
+        ! Override T_e for testing (e.g. coronal equilibrium at fixed T_e)
+        if (fix_kinetic_Te) then
+          T_e     = fixed_Te_eV * EL_CHG / K_BOLTZ   ! eV → K
+          T_i     = T_e                               ! assume T_i = T_e
+          grad_T_i = 0.d0
+          limits   = (n_e_raw .le. 1e14)              ! only density limit
+          limits_coll = .false.
+        end if
 
         !> loop over impurities groups and calculate their contribution to electron density
         imp_charge_density = 0.d0
@@ -691,7 +703,8 @@ contains
         if (particle_tmp%i_elm .gt. 0) then
           call boris_push_cylindrical(particle_tmp, sim%groups(group_num)%mass, E, B, tstep_part_adj)
           call find_RZ_nearby(sim%fields%node_list, sim%fields%element_list, rz_old(1), rz_old(2), st_old(1), st_old(2), i_elm_old, &
-                              particle_tmp%x(1), particle_tmp%x(2), particle_tmp%st(1), particle_tmp%st(2), particle_tmp%i_elm, ifail)
+                              particle_tmp%x(1), particle_tmp%x(2), particle_tmp%st(1), particle_tmp%st(2), particle_tmp%i_elm, ifail, &
+                              phi=particle_tmp%x(3))
         end if
     
       end do ! steps 
@@ -780,7 +793,8 @@ contains
           !> push particles and find (R,Z)
           if (particles(j)%i_elm .gt. 0) then
             call boris_push_cylindrical(particles(j), sim%groups(group_num)%mass, E, B, tstep_part_adj)
-            call find_RZ_nearby(sim%fields%node_list, sim%fields%element_list, rzp_old(1), rzp_old(2), st_old(1), st_old(2), i_elm_old, particles(j)%x(1), particles(j)%x(2), particles(j)%st(1), particles(j)%st(2), particles(j)%i_elm, ifail)
+            call find_RZ_nearby(sim%fields%node_list, sim%fields%element_list, rzp_old(1), rzp_old(2), st_old(1), st_old(2), i_elm_old, &
+                                particles(j)%x(1), particles(j)%x(2), particles(j)%st(1), particles(j)%st(2), particles(j)%i_elm, ifail, phi=particles(j)%x(3))
           endif
 
           !> may have pushed particle out of domain, check again if it is lost

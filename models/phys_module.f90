@@ -101,6 +101,10 @@ module phys_module
   logical :: Mach1_fix_B          !< Full-MHD: Use the initial magnetic field for Mach1 BCs on targets, ie. without AR and AZ variations
   logical :: export_polar_boundary !< Option to export boundary.txt even in the case of a polar boundary.
 
+  ! Test switches for stellarator kinetic
+  logical :: fix_kinetic_Te = .false.
+  real*8  :: fixed_Te_eV    = 43.d0
+
   ! --- RESISTIVITY SWITCHES FOR AR AND AZ EQUATIONS
   ! --- 1.
   ! --- Default set-up is eta_ARAZ_on = .true.
@@ -230,6 +234,24 @@ module phys_module
   real*8  :: j_cutoff_rcoord      !< Radial location from which the current is set to zero as it approaches the boundary - rcoord corresponds to the normalised toroidal flux
   real*8  :: j_cutoff_sig         !< Radial width over which the current is ramped down to zero towards the boundary
   real*8  :: bloating_factor      !< Linear radial factor by which the boundary has been bloated/extended. The LCFS should be at rcoord=1/(bloating_factor).
+  
+  ! Stellarator sheath boundary condition (SBC) parameters
+  logical :: vpar_sbc_enable      !< Enable angle-dependent v_par BC at boundary (stellarator SBC)
+  real*8  :: vpar_sbc_alpha0      !< Transition angle in degrees for tanh smoothing (default 5.0)
+  real*8  :: vpar_sbc_T_floor ! Minimum T_local used when computing the v_par SBC T-derivative to protect against against 1/cs -> infinity as edge T -> 0
+                            ! Does NOT affect the target value itself, only its Jacobian coupling.
+  logical :: particle_flux_sbc_enable  !< Enable particle flux BC at boundary (weak form BC for density equation)
+  logical :: heat_flux_sbc_enable  !< Enable heat flux BC at boundary (weak form BC for density equation)
+  logical :: freeze_psi_dynamics  !< Freeze evolution of Psi in mod_equations for model 183
+  real*8  :: core_freeze_s0, core_freeze_sig
+  logical :: use_core_freeze      !< Freeze rho/T for s < core_freeze_s0 (fake, unmodeled core)
+  logical :: zkpar_picard ! for Picard linearisation of the zk_par
+  logical ::   decay_bc_enable  ! Robinson BC for decay length condition, like EMC3
+  real*8  :: decay_lambda_T
+  real*8  :: decay_lambda_n
+  real*8  :: decay_R0
+  real*8  :: decay_rmin
+  real*8  :: decay_conv 
 
   !> Points used as blocks to extend grid into complex wall structures, see https://www.jorek.eu/wiki/doku.php?id=wallgrid_tutorial
   real*8  :: surface_cross_tol                                                  !< Tolerance when looking for crossing of polar lines and surfaces, needs to be > 1.0
