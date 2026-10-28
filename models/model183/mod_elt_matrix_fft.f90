@@ -1188,6 +1188,7 @@ subroutine get_amat(amat_ij, eq, psi_norm)
   real*8, dimension(:,:,:,:,:), pointer, intent(in) :: eq
   real*8, intent(in) :: psi_norm
   real*8     :: theta, zeta, reta, freeze_flag, core_freeze
+  real*8     :: hyb_off
   
   ! --- Take time evolution parameters from phys_module
   theta = time_evol_theta
@@ -1202,6 +1203,7 @@ subroutine get_amat(amat_ij, eq, psi_norm)
   freeze_flag = merge(1.d0, 0.d0, freeze_psi_dynamics)
   core_freeze = merge(0.5d0 - 0.5d0*tanh((psi_norm - core_freeze_s0)/core_freeze_sig), &
                        0.d0, use_core_freeze)
+  hyb_off = merge(0.d0, 1.d0, hybrid_par)
   
 #include "amat_automatic.h"
 end subroutine
