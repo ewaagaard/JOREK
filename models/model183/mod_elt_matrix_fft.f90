@@ -1059,7 +1059,7 @@ end if ! use fft
 
 if (hybrid_par) then
   ! --- self-check (once): g0 must equal G . T0 exactly (tests G indexing, HZ/HZ_p and the moving-grid term)
-  if (.not. hb_check_done .and. .not. maintain_profiles) then
+  if (.not. hb_check_done .and. .not. maintain_profiles .and. maxval(abs(hb_G(:,nph+1))) > 0.d0) then
     do kh = 1, n_vertex_max; do lh = 1, n_order+1; do nh = 1, n_tor
       hb_T0(((kh-1)*(n_order+1) + (lh-1))*n_tor + nh) = nodes(kh)%values(nh,lh,var_T)
     enddo; enddo; enddo
