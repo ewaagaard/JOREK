@@ -1040,6 +1040,9 @@ if (my_id .eq. 0) then
       call MPI_PACK(mode_families_modes(i,1:n_tmp),n_tmp,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
     enddo
     call MPI_PACK(weights_per_family(1:n_mode_families),n_mode_families,MPI_REAL8,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+    do i=1,n_mode_families
+      call MPI_PACK(family_var_mask(i,1:n_var),n_var,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+    enddo
   endif
   call MPI_PACK(autodistribute_ranks,1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   if (.not. autodistribute_ranks) then
@@ -2074,6 +2077,9 @@ if (my_id .ne. 0) then
       call MPI_UNPACK(buffer,bufsize,position,mode_families_modes(i,1:n_tmp),n_tmp,MPI_INTEGER,MPI_COMM_WORLD,ierr)
     enddo
     call MPI_UNPACK(buffer,bufsize,position,weights_per_family(1:n_mode_families),n_mode_families,MPI_REAL8,MPI_COMM_WORLD,ierr)
+    do i=1,n_mode_families
+      call MPI_UNPACK(buffer,bufsize,position,family_var_mask(i,1:n_var),n_var,MPI_INTEGER,MPI_COMM_WORLD,ierr)
+    enddo
   endif
   if (autodistribute_modes) n_mode_families = (n_tor+1)/2
   call MPI_UNPACK(buffer,bufsize,position,autodistribute_ranks,1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)

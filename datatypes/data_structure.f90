@@ -189,6 +189,8 @@ end type type_node
     integer, dimension(:), pointer               :: mode_set => Null()            !< toroidal modes in current mode family
     integer, dimension(:,:), pointer             :: mode_families_ranks => Null() !< MPI ranks which belong to each mode family
     integer, dimension(:,:), pointer             :: mode_families_modes => Null() !< Toroidal modes which belong to each mode family
+    integer, dimension(:,:), pointer             :: var_pos => Null()             !< (family, variable): position in that family's PC matrix, 0 = not in family
+    integer                                      :: var_set_n                     !< number of variables in the current family
     
     integer, dimension(:), pointer               :: rank_range => Null()          !< range of MPI ranks which belong to mode families
     integer                                      :: my_id, n_mpi, comm    

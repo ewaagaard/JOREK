@@ -9,6 +9,13 @@ module mod_distribute_preconditioner
 
 contains
 
+  !> variable 1..n_var of a global index g = (node_dof*n_var + var - 1)*n_tor + mode   [mod_assembly]
+  pure integer function var_of(g)
+    use mod_parameters, only: n_tor, n_var
+    integer(kind=int_all), intent(in) :: g
+    var_of = int(mod((g - Int1)/int(n_tor, int_all), int(n_var, int_all))) + 1
+  end function var_of
+
   !> Extract Preconditioner (PC) matrices from distributed global sparce matrix
   !! a_mat%val(1:nz_glob), a_mat%irn(1:nz_glob), a_mat%jcn(1:nz_glob)
   !! Uses splitted communication if number of send/recv entries exceeds INT_MAX
@@ -129,7 +136,8 @@ contains
               kmode = pc%mode_families_modes(j,k)
               do l = 1, nm
                 lmode = pc%mode_families_modes(j,l)
-                if ((n_i.eq.kmode).and.(n_j.eq.lmode)) then
+                if ((n_i.eq.kmode).and.(n_j.eq.lmode).and.(pc%var_pos(j,var_of(a_mat%irn(i))).gt.0) &
+                    .and.(pc%var_pos(j,var_of(a_mat%jcn(i))).gt.0)) then
                   ji = pc%rank_range(j)
                   if (distribute_row) then
                     nr = pc%ranks_per_family(j)
@@ -194,7 +202,8 @@ contains
       n_i = mod(pc%mat%irn(i)-Int1,n_tor_int) + 1
       do j=1, pc%mode_set_n
         if (n_i.eq.pc%mode_set(j)) then
-          pc%mat%irn(i) = int((pc%mat%irn(i)-Int1)/n_tor_int)*pc%mode_set_n + j
+          pc%mat%irn(i) = ((pc%mat%irn(i)-Int1)/(n_tor_int*n_var)*pc%var_set_n &
+                          + pc%var_pos(pc%family_id, var_of(pc%mat%irn(i))) - 1)*pc%mode_set_n + j
           exit
         endif
       enddo
@@ -202,7 +211,8 @@ contains
       n_j = mod(pc%mat%jcn(i)-Int1,n_tor_int) + 1
       do j=1, pc%mode_set_n
         if (n_j.eq.pc%mode_set(j)) then
-          pc%mat%jcn(i) = int((pc%mat%jcn(i)-Int1)/n_tor_int)*pc%mode_set_n + j
+          pc%mat%jcn(i) = ((pc%mat%jcn(i)-Int1)/(n_tor_int*n_var)*pc%var_set_n &
+                          + pc%var_pos(pc%family_id, var_of(pc%mat%jcn(i))) - 1)*pc%mode_set_n + j
           exit
         endif
       enddo
@@ -236,7 +246,8 @@ contains
     
     if (pc%my_id.eq.0) write(*,*) "Analyzing preconditioner"
     
-    pc%mat%ng = (pc%mode_set_n)*(a_mat%ng)/n_tor ! rank of local PC matrix
+    if (mod(a_mat%ng, int(n_tor*n_var, int_all)) .ne. 0) stop 'set_pc_structure: unexpected index layout'
+    pc%mat%ng = pc%mode_set_n*pc%var_set_n*(a_mat%ng/(n_tor*n_var)) ! rank of local PC matrix
     pc%mat%nr = pc%mat%ng
     pc%mat%nc = pc%mat%ng
     pc%n_glob = a_mat%ng
@@ -250,7 +261,7 @@ contains
       pc%n_per_rank(j) = block_size*((a_mat%ng/block_size)/nr) - block_size ! number of rows per rank for j-th family (lower limit)
     enddo
  
-    pc%mat%block_size = n_var*pc%mode_set_n ! set block size for current family
+    pc%mat%block_size = pc%var_set_n*pc%mode_set_n ! set block size for current family
 
     allocate(long_send_counts(pc%n_mpi))
     allocate(long_recv_counts(pc%n_mpi))
@@ -345,9 +356,12 @@ contains
 
     allocate(pc%row_index(pc%rhs%n))
     
+    i0 = 0                                                     ! same order as the local indices in update_pc_mat
     do ind = 0, a_mat%ng/n_tor - 1
+      if (pc%var_pos(pc%family_id, int(mod(ind, int(n_var, int_all))) + 1) .eq. 0) cycle
       do i = 1, pc%mode_set_n
-        pc%row_index(i + ind*pc%mode_set_n) =  pc%mode_set(i) + ind*n_tor
+        i0 = i0 + 1
+        pc%row_index(i0) = pc%mode_set(i) + ind*n_tor
       enddo
     enddo
     
@@ -419,7 +433,8 @@ contains
             kmode = pc%mode_families_modes(j,k)
             do l = 1, nm
               lmode = pc%mode_families_modes(j,l)
-              if ((n_i.eq.kmode).and.(n_j.eq.lmode)) then
+                if ((n_i.eq.kmode).and.(n_j.eq.lmode).and.(pc%var_pos(j,var_of(a_mat%irn(i))).gt.0) &
+                    .and.(pc%var_pos(j,var_of(a_mat%jcn(i))).gt.0)) then
                 ji = pc%rank_range(j)
                 if (distribute_row) then
                   nr = pc%ranks_per_family(j)

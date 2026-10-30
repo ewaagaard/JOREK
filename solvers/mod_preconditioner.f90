@@ -116,11 +116,13 @@ module mod_preconditioner
   !> Distribute toroidal modes among mode families
   subroutine distribute_modes(pc)
     use data_structure, only: type_PRECOND
-    use phys_module, only: modes_per_family, mode_families_modes, weights_per_family
+    use phys_module, only: modes_per_family, mode_families_modes, weights_per_family, family_var_mask
+    use mod_parameters, only: n_tor, n_var
+    use mpi_mod
     implicit none
 
     type(type_PRECOND) :: pc
-    integer            :: i, j, n_fam_max
+    integer            :: i, j, n_fam_max, k, m, v, ncov, ierr
 
     allocate(pc%modes_per_family(pc%n_mode_families))
 
@@ -162,6 +164,32 @@ module mod_preconditioner
     pc%mode_set_n = pc%modes_per_family(pc%family_id)
     allocate(pc%mode_set(pc%mode_set_n))
     pc%mode_set(1:pc%mode_set_n) = pc%mode_families_modes(pc%family_id,1:pc%mode_set_n)
+    ! --- variables per family: all by default (and always with autodistribute_modes) -> identical to before
+    allocate(pc%var_pos(pc%n_mode_families, n_var)); pc%var_pos = 0
+    do i = 1, pc%n_mode_families
+      k = 0
+      do v = 1, n_var
+        if (pc%autodistribute_modes .or. family_var_mask(i,v) .ne. 0) then
+          k = k + 1; pc%var_pos(i,v) = k
+        endif
+      enddo
+    enddo
+    pc%var_set_n = count(pc%var_pos(pc%family_id,:) .gt. 0)
+    ! --- with a variable split, each (mode, variable) must be in exactly one family: else zero or doubled PC rows
+    if (any(pc%var_pos .eq. 0)) then
+      do m = 1, n_tor
+        do v = 1, n_var
+          ncov = 0
+          do i = 1, pc%n_mode_families
+            if (any(pc%mode_families_modes(i,1:pc%modes_per_family(i)) .eq. m) .and. pc%var_pos(i,v) .gt. 0) ncov = ncov + 1
+          enddo
+          if (ncov .ne. 1) then
+            write(*,*) 'ERROR preconditioner: (mode, variable) =', m, v, ' is in', ncov, ' families (must be 1)'
+            call MPI_Abort(MPI_COMM_WORLD, 1, ierr)
+          endif
+        enddo
+      enddo
+    endif
 
   end subroutine distribute_modes
 
@@ -340,7 +368,9 @@ module mod_preconditioner
       pc%mode_families_modes => Null()
       deallocate(pc%mode_set)
       pc%mode_set => Null()
-
+      deallocate(pc%var_pos)
+      pc%var_pos => Null()
+      
       pc%initialized = .false.
 
     endif
