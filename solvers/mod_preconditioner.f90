@@ -175,6 +175,12 @@ module mod_preconditioner
       enddo
     enddo
     pc%var_set_n = count(pc%var_pos(pc%family_id,:) .gt. 0)
+#ifdef DIRECT_CONSTRUCTION
+    if (any(pc%var_pos .eq. 0)) then
+      write(*,*) 'ERROR preconditioner: family_var_mask is not supported with DIRECT_CONSTRUCTION'
+      call MPI_Abort(MPI_COMM_WORLD, 1, ierr)
+    endif
+#endif
     ! --- with a variable split, each (mode, variable) must be in exactly one family: else zero or doubled PC rows
     if (any(pc%var_pos .eq. 0)) then
       do m = 1, n_tor
@@ -370,7 +376,7 @@ module mod_preconditioner
       pc%mode_set => Null()
       deallocate(pc%var_pos)
       pc%var_pos => Null()
-      
+
       pc%initialized = .false.
 
     endif
