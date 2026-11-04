@@ -85,7 +85,7 @@ type (type_node),    intent(in), optional :: aux_nodes(n_vertex_max) ! particle 
 
 real*8, dimension (DIM0,DIM0)       :: ELM
 real*8, dimension (DIM0)            :: RHS
-real*8                              :: T_ns            ! T at the Gauss point for the neutral-sink fade
+real*8                              :: T_nsink            ! T at the Gauss point for the neutral-sink fade
 integer                , intent(in) :: tid
 integer                , intent(in) :: i_tor_min, i_tor_max
 
@@ -210,9 +210,9 @@ end if
 n_tor_local = n_tor_end - n_tor_start + 1
 
 if (.not. ns_checked) then                                  ! EMC3 neutral sink: read the table once per rank
-  !$omp critical (neutral_sink_init)
+  !$omp critical (ns_init_lock)
   if (.not. ns_checked) call neutral_sink_init(neutral_sink_file)
-  !$omp end critical (neutral_sink_init)
+  !$omp end critical (ns_init_lock)
 endif
 
 !---------------------------------------------------- value of (x,y) and derivatives on Gaussian points
@@ -623,9 +623,9 @@ do ms=1, n_gauss
         eq(var_k_perp,0,0,0,:)        = get_zkperp(psi_norm) * corr_neg_dens(eq(var_rho,0,0,0,1))  ! Perpendicular thermal conductivity ! TEMP for EMC3: kappa_perp = (g-1) chi t_norm rho (local)    
         eq(   var_S_e,0,0,0,:)        = heat_source(mp,ms,mt)       ! S_e
         if (ns_active) then                                   ! EMC3 neutral energy sink, faded as T -> 0 (explicit)
-          T_ns = corr_neg_temp(eq(var_T,0,0,0,1))
+          T_nsink = corr_neg_temp(eq(var_T,0,0,0,1))
           eq(var_S_e,0,0,0,:) = eq(var_S_e,0,0,0,:) - neutral_sink_scale*neutral_sink_at(x_g(mp,ms,mt), y_g(mp,ms,mt), mp) &
-                                * T_ns/(T_ns + neutral_sink_Tcut)
+                                * T_nsink/(T_nsink + neutral_sink_Tcut)
         endif
         ! Resistivity
         if (eta_T_dependent) then
