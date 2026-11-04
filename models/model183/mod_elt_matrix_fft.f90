@@ -1,3 +1,51 @@
+!> EMC3 neutral energy sink (EMC3 benchmark, tier C): fixed field, one (R,Z) table per JOREK plane, bilinear lookup.
+!! Table written by make_jorek_sink_table.py: stream file, int32 nR,nZ,nP, real8 R0,dR,Z0,dZ, real8 tab(nR,nZ,nP) >= 0
+!! (power density removed, code units). Read once per MPI rank on first use; 'none' = off (no effect on the model).
+module mod_neutral_sink
+  implicit none
+  private
+  public :: neutral_sink_init, neutral_sink_at, ns_active, ns_checked
+  logical :: ns_active = .false., ns_checked = .false.
+  integer :: nR = 0, nZ = 0, nP = 0
+  real*8  :: R0t = 0.d0, dRt = 1.d0, Z0t = 0.d0, dZt = 1.d0
+  real*8, allocatable :: tab(:,:,:)
+contains
+  subroutine neutral_sink_init(fname)
+    use mod_parameters, only: n_plane
+    character(len=*), intent(in) :: fname
+    integer :: u, ios, hdr(3)
+    real*8  :: g(4)
+    if (len_trim(fname) > 0 .and. trim(fname) /= 'none') then
+      open(newunit=u, file=trim(fname), access='stream', form='unformatted', status='old', action='read', iostat=ios)
+      if (ios /= 0) then
+        write(*,*) 'ERROR neutral_sink: cannot open ', trim(fname); stop
+      endif
+      read(u) hdr, g
+      nR = hdr(1); nZ = hdr(2); nP = hdr(3); R0t = g(1); dRt = g(2); Z0t = g(3); dZt = g(4)
+      if (nP /= n_plane) then
+        write(*,*) 'ERROR neutral_sink: table has', nP, ' planes, binary n_plane =', n_plane; stop
+      endif
+      allocate(tab(nR, nZ, nP)); read(u) tab; close(u)
+      ns_active = .true.
+      write(*,'(A,3I6,A,ES12.4)') ' neutral_sink: table nR,nZ,nP =', nR, nZ, nP, '   max (code units) =', maxval(tab)
+    endif
+    !$omp flush
+    ns_checked = .true.
+  end subroutine neutral_sink_init
+
+  pure real*8 function neutral_sink_at(R, Z, mp) result(s)
+    real*8,  intent(in) :: R, Z
+    integer, intent(in) :: mp
+    real*8  :: x, y, fx, fy
+    integer :: i, j
+    s = 0.d0
+    x = (R - R0t)/dRt + 1.d0; y = (Z - Z0t)/dZt + 1.d0
+    if (x < 1.d0 .or. y < 1.d0 .or. x >= dble(nR) .or. y >= dble(nZ)) return
+    i = int(x); j = int(y); fx = x - i; fy = y - j
+    s = (1.d0-fx)*(1.d0-fy)*tab(i,j,mp) + fx*(1.d0-fy)*tab(i+1,j,mp) + (1.d0-fx)*fy*tab(i,j+1,mp) + fx*fy*tab(i+1,j+1,mp)
+  end function neutral_sink_at
+end module mod_neutral_sink
+
 module mod_elt_matrix_fft
 implicit none
 contains
@@ -25,6 +73,7 @@ use mod_chi
 use mod_sources
 use coupling_variables
 use mod_coupling_settings
+use mod_neutral_sink, only: neutral_sink_init, neutral_sink_at, ns_active, ns_checked
 
 implicit none
  
@@ -36,6 +85,7 @@ type (type_node),    intent(in), optional :: aux_nodes(n_vertex_max) ! particle 
 
 real*8, dimension (DIM0,DIM0)       :: ELM
 real*8, dimension (DIM0)            :: RHS
+real*8                              :: T_ns            ! T at the Gauss point for the neutral-sink fade
 integer                , intent(in) :: tid
 integer                , intent(in) :: i_tor_min, i_tor_max
 
@@ -158,6 +208,12 @@ else
 end if
 
 n_tor_local = n_tor_end - n_tor_start + 1
+
+if (.not. ns_checked) then                                  ! EMC3 neutral sink: read the table once per rank
+  !$omp critical (neutral_sink_init)
+  if (.not. ns_checked) call neutral_sink_init(neutral_sink_file)
+  !$omp end critical (neutral_sink_init)
+endif
 
 !---------------------------------------------------- value of (x,y) and derivatives on Gaussian points
 x_g  = 0.d0; x_s   = 0.d0; x_t   = 0.d0; x_p = 0.d0; x_st  = 0.d0; x_ss  = 0.d0; x_tt  = 0.d0; x_sp = 0.d0; x_tp = 0.d0; x_pp = 0.d0;
@@ -566,6 +622,11 @@ do ms=1, n_gauss
       else !>>> if not with_TiTe
         eq(var_k_perp,0,0,0,:)        = get_zkperp(psi_norm) * corr_neg_dens(eq(var_rho,0,0,0,1))  ! Perpendicular thermal conductivity ! TEMP for EMC3: kappa_perp = (g-1) chi t_norm rho (local)    
         eq(   var_S_e,0,0,0,:)        = heat_source(mp,ms,mt)       ! S_e
+        if (ns_active) then                                   ! EMC3 neutral energy sink, faded as T -> 0 (explicit)
+          T_ns = corr_neg_temp(eq(var_T,0,0,0,1))
+          eq(var_S_e,0,0,0,:) = eq(var_S_e,0,0,0,:) - neutral_sink_scale*neutral_sink_at(x_g(mp,ms,mt), y_g(mp,ms,mt), mp) &
+                                * T_ns/(T_ns + neutral_sink_Tcut)
+        endif
         ! Resistivity
         if (eta_T_dependent) then
           eq(    var_eta,0,0,0,:) = eta*(corr_neg_temp(eq(var_T,0,0,0,1))/T_0)**(-1.5d0)               ! eta 
