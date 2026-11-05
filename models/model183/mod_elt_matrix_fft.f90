@@ -623,9 +623,13 @@ do ms=1, n_gauss
         eq(var_k_perp,0,0,0,:)        = get_zkperp(psi_norm) * corr_neg_dens(eq(var_rho,0,0,0,1))  ! Perpendicular thermal conductivity ! TEMP for EMC3: kappa_perp = (g-1) chi t_norm rho (local)    
         eq(   var_S_e,0,0,0,:)        = heat_source(mp,ms,mt)       ! S_e
         if (ns_active) then                                   ! EMC3 neutral energy sink, faded as T -> 0 (explicit)
-          T_nsink = corr_neg_temp(eq(var_T,0,0,0,1))
+          if (neutral_sink_Tplus) then                  ! zero sink at T <= 0 (no drain of isolated cold tubes)
+            T_nsink = max(eq(var_T,0,0,0,1), 0.d0)
+          else                                          ! floored T: sink stays ~Tc/(Tc+Tcut) at T < 0
+            T_nsink = corr_neg_temp(eq(var_T,0,0,0,1))
+          endif
           eq(var_S_e,0,0,0,:) = eq(var_S_e,0,0,0,:) - neutral_sink_scale*neutral_sink_at(x_g(mp,ms,mt), y_g(mp,ms,mt), mp) &
-                                * T_nsink/(T_nsink + neutral_sink_Tcut)
+                                * T_nsink/max(T_nsink + neutral_sink_Tcut, 1.d-30)
         endif
         ! Resistivity
         if (eta_T_dependent) then
