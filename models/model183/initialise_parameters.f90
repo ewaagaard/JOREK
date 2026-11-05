@@ -75,7 +75,6 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 xampl,xwidth,xsig,xtheta,xshift,xleft, xpoint,      &
                 xcase, D_perp_file, ZK_perp_file,                   &
                 neutral_sink_file, neutral_sink_scale, neutral_sink_Tcut, &
-                neutral_sink_Tplus,                                 &
                 rho_file, T_file, ffprime_file, rot_file, domm_file,&
                 phi_file,                                           &
                 normalized_velocity_profile,                        &

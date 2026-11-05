@@ -700,7 +700,6 @@ module phys_module
   character(len=512)  :: neutral_sink_file = 'none' !< EMC3 neutral energy sink table (make_jorek_sink_table.py); 'none' = off
   real*8              :: neutral_sink_scale = 1.d0  !< multiplier on the table (normalisation)
   real*8              :: neutral_sink_Tcut  = 0.d0  !< sink faded as T/(T + Tcut), code units (5 eV ~ 1.51d-5 at n0 = 1.5e19)
-  logical             :: neutral_sink_Tplus = .false. !< fade on max(T,0): zero sink at T <= 0
   character(len=512)  :: zk_e_perp_file     !< ASCII file with perpendicular electron heat diffusion profile
   character(len=512)  :: zk_i_perp_file     !< ASCII file wtih perpendicular ion heat diffusion profile
   character(len=512)  :: v_pinch_file       !< ASCII file with inward pinch velocity profile (psin, V_pinch columns)
