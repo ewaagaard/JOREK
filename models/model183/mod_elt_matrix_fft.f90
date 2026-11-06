@@ -679,6 +679,10 @@ do ms=1, n_gauss
         if (eq(var_T,0,0,0,1) .lt. ZK_prof_neg_thresh) then
           eq(var_k_perp,0,0,0,:) = ZK_prof_neg       
         endif
+        if (eq(var_T,0,0,0,1) .lt. ZK_par_neg_thresh) then        ! parallel replacement (model-600 analogue): energy-conserving,
+          eq(    var_k_par,0,0,0,:) = ZK_par_neg                    ! re-opens kappa_par where corr_neg would floor it; enters the
+          eq(var_dk_par_dT,0,0,0,:) = 0.d0                          ! hybrid term via hb_dk below. Preset thresh = 0: set it explicitly!
+        endif
       endif ! (with_TiTe) ********************************************************************
 
       ! Auxiliary variables (aux)
