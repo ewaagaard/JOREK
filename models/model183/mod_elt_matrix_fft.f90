@@ -86,6 +86,7 @@ type (type_node),    intent(in), optional :: aux_nodes(n_vertex_max) ! particle 
 real*8, dimension (DIM0,DIM0)       :: ELM
 real*8, dimension (DIM0)            :: RHS
 real*8                              :: T_nsink            ! T at the Gauss point for the neutral-sink fade
+real*8                              :: T_pos              ! T at the Gauss point for the positivity relaxation
 integer                , intent(in) :: tid
 integer                , intent(in) :: i_tor_min, i_tor_max
 
@@ -626,6 +627,11 @@ do ms=1, n_gauss
           T_nsink = corr_neg_temp(eq(var_T,0,0,0,1))
           eq(var_S_e,0,0,0,:) = eq(var_S_e,0,0,0,:) - neutral_sink_scale*neutral_sink_at(x_g(mp,ms,mt), y_g(mp,ms,mt), mp) &
                                 * T_nsink/(T_nsink + neutral_sink_Tcut)
+        endif
+        if (pos_relax_tau > 0.d0) then                        ! positivity relaxation (explicit, logged in diagnose_*: P_pos)
+          T_pos = eq(var_T,0,0,0,1)                           ! dT/dt = (Tfloor - T)/tau_eff where T < Tfloor; tau_eff >= tstep
+          if (T_pos < pos_relax_Tfloor) eq(var_S_e,0,0,0,:) = eq(var_S_e,0,0,0,:) &
+              + corr_neg_dens(eq(var_rho,0,0,0,1))*(pos_relax_Tfloor - T_pos)/max(pos_relax_tau, tstep)
         endif
         ! Resistivity
         if (eta_T_dependent) then
