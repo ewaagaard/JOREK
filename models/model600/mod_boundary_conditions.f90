@@ -37,7 +37,7 @@ use phys_module, only: F0, GAMMA, freeboundary, RMP_on, psi_RMP_cos, dpsi_RMP_co
        RMP_start_time, tstep, RMP_har_cos, RMP_har_sin, T_min,                                             &
        mach_one_bnd_integral, Vpar_smoothing, vpar_smoothing_coef, no_mach1_bc,                            &
        Number_RMP_harmonics, RMP_har_cos_spectrum,RMP_har_sin_spectrum, grid_to_wall, n_wall_blocks, keep_n0_const, &
-       bcs, loop_voltage, central_density, central_mass 
+       bcs, loop_voltage, central_density, central_mass, freeze_psi_dynamics, use_core_freeze, core_freeze_s0
 use tr_module
 use mpi_mod
 use mod_basisfunctions
@@ -105,6 +105,7 @@ real*8  :: d2Mach1BC, d2Mach1BC_v, d2Mach1BC_T, d2Mach1BC_Tb, d2Mach1BC_Tbb
 
 integer :: node_indices( (n_order+1)/2, (n_order+1)/2 ), index_tmp, kk, ll
 logical, parameter :: include_2nd_derivatives = .false.
+real*8  :: psn_frz
 
 RMPspectrum: if (RMP_on .and. (n_tor .ge. 3)) then !*****
   
@@ -743,6 +744,28 @@ do i=1, n_local_elms !=== do elements
   enddo         !=== enddo vertex
  
 enddo           !=== do elements
+
+! --- 183-vs-600 test: freeze variables on ALL nodes with the Dirichlet penalty (delta = 0)
+!     freeze_psi_dynamics: Psi, u, zj, w;   use_core_freeze: rho where psi_n < core_freeze_s0 (> 100: everywhere)
+if (freeze_psi_dynamics .or. use_core_freeze) then
+  do i = 1, n_local_elms
+    ielm = local_elms(i)
+    do iv = 1, n_vertex_max
+      inode   = element_list%element(ielm)%vertex(iv)
+      psn_frz = (node_list%node(inode)%values(1,1,var_psi) - psi_axis) / (psi_bnd - psi_axis)
+      do in = a_mat%i_tor_min, a_mat%i_tor_max
+        do k = 1, n_var
+          if (.not. ( (freeze_psi_dynamics .and. ((k == var_psi) .or. (k == var_u) .or. (k == var_zj) .or. (k == var_w))) .or. &
+                      (use_core_freeze .and. (k == var_rho) .and. ((core_freeze_s0 > 1.d2) .or. (psn_frz < core_freeze_s0))) )) cycle
+          do j = 1, n_degrees
+            index_node = node_list%node(inode)%index(j)
+            call boundary_conditions_add_one_entry(index_node, k, in, index_node, k, in, zbig_backup, index_min, index_max, a_mat)
+          enddo
+        enddo
+      enddo
+    enddo
+  enddo
+endif
 
 if (RMP_on) then
   if (allocated(psi_RMP_cos1))         call tr_deallocate(psi_RMP_cos1,"psi_RMP_cos1",CAT_UNKNOWN)
