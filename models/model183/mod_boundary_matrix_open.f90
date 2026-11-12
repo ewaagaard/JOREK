@@ -392,7 +392,7 @@ do ms=1,n_gauss
             ij5 = index_ij + 4*n_tor_local
             
             ! Negative sign: outward flux reduces density
-            rhs_ij_5 = - v * rho_local * cs_local * abs_ndotB * BigR * dl * tstep
+            rhs_ij_5 = - v * rho_local * cs_local * abs_ndotB * BigR * dl * tstep * particle_sbc_scale
             
             RHS(ij5) = RHS(ij5) + rhs_ij_5 * wgauss(ms)
           endif
@@ -487,7 +487,7 @@ do ms=1,n_gauss
                 if (particle_flux_sbc_enable) then
                   kl5 = index_kl + 4*n_tor_local
                   ! Psi is the trial function for the unknown (density increment)
-                  amat_55 = v * Psi * cs_local * abs_ndotB * BigR * dl * theta * tstep
+                  amat_55 = v * Psi * cs_local * abs_ndotB * BigR * dl * theta * tstep * particle_sbc_scale
                   ELM(ij5,kl5) = ELM(ij5,kl5) + amat_55 * wgauss(ms)
                 endif
                 

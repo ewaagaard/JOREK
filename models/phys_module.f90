@@ -700,6 +700,9 @@ module phys_module
   character(len=512)  :: neutral_sink_file = 'none' !< EMC3 neutral energy sink table (make_jorek_sink_table.py); 'none' = off
   real*8              :: neutral_sink_scale = 1.d0  !< multiplier on the table (normalisation)
   real*8              :: neutral_sink_Tcut  = 0.d0  !< sink faded as T/(T + Tcut), code units (5 eV ~ 1.51d-5 at n0 = 1.5e19)
+  character(len=512)  :: particle_table_file = 'none' !< EMC3 ionisation-source table (make_jorek_psource_table.py); 'none' = off
+  real*8              :: particle_table_scale = 1.d0 !< multiplier on the table
+  real*8              :: particle_sbc_scale = 1.d0   !< multiplier on the particle-flux SBC (0: convective Bohm loss only)
   real*8              :: pos_relax_tau      = 0.d0  !< positivity relaxation S_e += rho (Tfloor - T)/max(tau,tstep) where T < Tfloor; 0 = off
   real*8              :: pos_relax_Tfloor   = 0.d0  !< floor of the positivity relaxation, code units (0 = T >= 0)
   character(len=512)  :: zk_e_perp_file     !< ASCII file with perpendicular electron heat diffusion profile

@@ -5,44 +5,56 @@ module mod_neutral_sink
   implicit none
   private
   public :: neutral_sink_init, neutral_sink_at, ns_active, ns_checked
-  logical :: ns_active = .false., ns_checked = .false.
-  integer :: nR = 0, nZ = 0, nP = 0
-  real*8  :: R0t = 0.d0, dRt = 1.d0, Z0t = 0.d0, dZt = 1.d0
-  real*8, allocatable :: tab(:,:,:)
+  integer, parameter :: NT = 2                               ! 1 = EMC3 energy sink, 2 = EMC3 particle (ionisation) source
+  logical, save :: ns_active(NT) = .false., ns_checked = .false.
+  integer, save :: nR(NT) = 0, nZ(NT) = 0
+  real*8,  save :: R0t(NT) = 0.d0, dRt(NT) = 1.d0, Z0t(NT) = 0.d0, dZt(NT) = 1.d0
+  type :: t_tab
+    real*8, allocatable :: a(:,:,:)
+  end type t_tab
+  type(t_tab), save :: tb(NT)
 contains
-  subroutine neutral_sink_init(fname)
-    use mod_parameters, only: n_plane
-    character(len=*), intent(in) :: fname
-    integer :: u, ios, hdr(3)
-    real*8  :: g(4)
-    if (len_trim(fname) > 0 .and. trim(fname) /= 'none') then
-      open(newunit=u, file=trim(fname), access='stream', form='unformatted', status='old', action='read', iostat=ios)
-      if (ios /= 0) then
-        write(*,*) 'ERROR neutral_sink: cannot open ', trim(fname); stop
-      endif
-      read(u) hdr, g
-      nR = hdr(1); nZ = hdr(2); nP = hdr(3); R0t = g(1); dRt = g(2); Z0t = g(3); dZt = g(4)
-      if (nP /= n_plane) then
-        write(*,*) 'ERROR neutral_sink: table has', nP, ' planes, binary n_plane =', n_plane; stop
-      endif
-      allocate(tab(nR, nZ, nP)); read(u) tab; close(u)
-      ns_active = .true.
-      write(*,'(A,3I6,A,ES12.4)') ' neutral_sink: table nR,nZ,nP =', nR, nZ, nP, '   max (code units) =', maxval(tab)
-    endif
+  subroutine neutral_sink_init(fname_sink, fname_part)
+    character(len=*), intent(in) :: fname_sink, fname_part
+    call read_tab(1, fname_sink)
+    call read_tab(2, fname_part)
     !$omp flush
     ns_checked = .true.
   end subroutine neutral_sink_init
 
-  pure real*8 function neutral_sink_at(R, Z, mp) result(s)
+  subroutine read_tab(k, fname)                              ! stream file: int32 nR,nZ,nP; real8 R0,dR,Z0,dZ; real8 tab(nR,nZ,nP)
+    use mod_parameters, only: n_plane
+    integer,          intent(in) :: k
+    character(len=*), intent(in) :: fname
+    integer :: u, ios, hdr(3)
+    real*8  :: g(4)
+    if (len_trim(fname) == 0 .or. trim(fname) == 'none') return
+    open(newunit=u, file=trim(fname), access='stream', form='unformatted', status='old', action='read', iostat=ios)
+    if (ios /= 0) then
+      write(*,*) 'ERROR neutral_sink: cannot open ', trim(fname); stop
+    endif
+    read(u) hdr, g
+    nR(k) = hdr(1); nZ(k) = hdr(2); R0t(k) = g(1); dRt(k) = g(2); Z0t(k) = g(3); dZt(k) = g(4)
+    if (hdr(3) /= n_plane) then
+      write(*,*) 'ERROR neutral_sink: table', k, ' has', hdr(3), ' planes, binary n_plane =', n_plane; stop
+    endif
+    allocate(tb(k)%a(nR(k), nZ(k), hdr(3))); read(u) tb(k)%a; close(u)
+    ns_active(k) = .true.
+    write(*,'(A,I2,A,3I6,A,ES12.4)') ' neutral_sink: table', k, ' nR,nZ,nP =', nR(k), nZ(k), hdr(3), &
+                                     '   max (code units) =', maxval(tb(k)%a)
+  end subroutine read_tab
+
+  pure real*8 function neutral_sink_at(k, R, Z, mp) result(s)
+    integer, intent(in) :: k, mp
     real*8,  intent(in) :: R, Z
-    integer, intent(in) :: mp
     real*8  :: x, y, fx, fy
     integer :: i, j
     s = 0.d0
-    x = (R - R0t)/dRt + 1.d0; y = (Z - Z0t)/dZt + 1.d0
-    if (x < 1.d0 .or. y < 1.d0 .or. x >= dble(nR) .or. y >= dble(nZ)) return
+    x = (R - R0t(k))/dRt(k) + 1.d0; y = (Z - Z0t(k))/dZt(k) + 1.d0
+    if (x < 1.d0 .or. y < 1.d0 .or. x >= dble(nR(k)) .or. y >= dble(nZ(k))) return
     i = int(x); j = int(y); fx = x - i; fy = y - j
-    s = (1.d0-fx)*(1.d0-fy)*tab(i,j,mp) + fx*(1.d0-fy)*tab(i+1,j,mp) + (1.d0-fx)*fy*tab(i,j+1,mp) + fx*fy*tab(i+1,j+1,mp)
+    s = (1.d0-fx)*(1.d0-fy)*tb(k)%a(i,j,mp)   + fx*(1.d0-fy)*tb(k)%a(i+1,j,mp) &
+      + (1.d0-fx)*fy*tb(k)%a(i,j+1,mp)        + fx*fy*tb(k)%a(i+1,j+1,mp)
   end function neutral_sink_at
 end module mod_neutral_sink
 
@@ -212,7 +224,7 @@ n_tor_local = n_tor_end - n_tor_start + 1
 
 if (.not. ns_checked) then                                  ! EMC3 neutral sink: read the table once per rank
   !$omp critical (ns_init_lock)
-  if (.not. ns_checked) call neutral_sink_init(neutral_sink_file)
+  if (.not. ns_checked) call neutral_sink_init(neutral_sink_file, particle_table_file)
   !$omp end critical (ns_init_lock)
 endif
 
@@ -414,6 +426,8 @@ do ms=1, n_gauss
       eq( var_D_par,0,0,0,:) = D_par                       ! D_par
 
       eq(var_S_rho,0,0,0,:) = particle_source(mp,ms,mt)   ! S_rho
+      if (ns_active(2)) eq(var_S_rho,0,0,0,:) = eq(var_S_rho,0,0,0,:) &   ! EMC3 ionisation-source table (explicit)
+          + particle_table_scale*neutral_sink_at(2, x_g(mp,ms,mt), y_g(mp,ms,mt), mp)
       eq(  var_S_j,0,0,0,:) = current_source(mp,ms,mt)/F0 ! S_j
 
       ! ############ Kinetics Particle Coupling source terms ############
@@ -623,9 +637,9 @@ do ms=1, n_gauss
       else !>>> if not with_TiTe
         eq(var_k_perp,0,0,0,:)        = get_zkperp(psi_norm) * corr_neg_dens(eq(var_rho,0,0,0,1))  ! Perpendicular thermal conductivity ! TEMP for EMC3: kappa_perp = (g-1) chi t_norm rho (local)    
         eq(   var_S_e,0,0,0,:)        = heat_source(mp,ms,mt)       ! S_e
-        if (ns_active) then                                   ! EMC3 neutral energy sink, faded as T -> 0 (explicit)
+        if (ns_active(1)) then                                   ! EMC3 neutral energy sink, faded as T -> 0 (explicit)
           T_nsink = corr_neg_temp(eq(var_T,0,0,0,1))
-          eq(var_S_e,0,0,0,:) = eq(var_S_e,0,0,0,:) - neutral_sink_scale*neutral_sink_at(x_g(mp,ms,mt), y_g(mp,ms,mt), mp) &
+          eq(var_S_e,0,0,0,:) = eq(var_S_e,0,0,0,:) - neutral_sink_scale*neutral_sink_at(1, x_g(mp,ms,mt), y_g(mp,ms,mt), mp) &
                                 * T_nsink/(T_nsink + neutral_sink_Tcut)
         endif
         if (pos_relax_tau > 0.d0) then                        ! positivity relaxation (explicit, logged in diagnose_*: P_pos)
