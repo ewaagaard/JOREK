@@ -67,6 +67,7 @@ real*8 :: bdotn_nodal1, bdotn_nodal2, Bmag_nodal1, Bmag_nodal2
 
 ! Particle flux SBC variables
 real*8  :: rhs_ij_5, cs_local, rho_local, abs_ndotB, s_min
+real*8 :: sh_floor ! min_sheath_angle flux floor (600 meaning)
 real*8 :: r_g, w_arc, a_dec ! for decay length condition
 
 type(type_node) :: nodes2(2), tmp_node
@@ -339,8 +340,7 @@ do ms=1,n_gauss
       T_local = corr_neg_temp(T0_interp(mp,ms))
       cs_local = sqrt(GAMMA * T_local)
       s_min     = sin(min_sheath_angle*PI/180.d0)
-      abs_ndotB = abs(bdotn_normalized) &
-                * 0.5d0*(1.d0 + tanh((abs(bdotn_normalized) - s_min)/(0.1d0*s_min)))   ! |b.n|, zero below min_sheath_angle (EMC3-like), smoot
+      abs_ndotB = abs(bdotn_normalized)   ! floor added below, after the arc weight is known
     else
       rho_local = 0.d0
       T_local = 0.d0
@@ -355,6 +355,13 @@ do ms=1,n_gauss
       w_arc = 0.5d0*(1.d0 + tanh((r_g - decay_rmin)/5.d-3))
       a_dec = ( get_zkperp(1.d0)*rho_local/decay_lambda_T &
               + decay_conv*GAMMA*D_perp(1)*rho_local/decay_lambda_n ) * w_arc
+    endif
+    ! --- min_sheath_angle = flux floor as in model 600 (added, not a cutoff); not on the arc when the decay BC acts there
+    sh_floor = 0.d0
+    if (particle_flux_sbc_enable .or. heat_flux_sbc_enable) then
+      sh_floor = s_min
+      if (decay_bc_enable) sh_floor = s_min*(1.d0 - w_arc)
+      abs_ndotB = abs_ndotB + sh_floor
     endif
     !$omp atomic
     diag_bnd(1) = diag_bnd(1) + BigR*dl*wgauss(ms)
@@ -392,7 +399,7 @@ do ms=1,n_gauss
             ij5 = index_ij + 4*n_tor_local
             
             ! Negative sign: outward flux reduces density
-            rhs_ij_5 = - v * rho_local * cs_local * abs_ndotB * BigR * dl * tstep * particle_sbc_scale
+            rhs_ij_5 = - v * rho_local * cs_local * (abs(bdotn_normalized)*particle_sbc_scale + sh_floor) * BigR * dl * tstep
             
             RHS(ij5) = RHS(ij5) + rhs_ij_5 * wgauss(ms)
           endif
@@ -487,7 +494,7 @@ do ms=1,n_gauss
                 if (particle_flux_sbc_enable) then
                   kl5 = index_kl + 4*n_tor_local
                   ! Psi is the trial function for the unknown (density increment)
-                  amat_55 = v * Psi * cs_local * abs_ndotB * BigR * dl * theta * tstep * particle_sbc_scale
+                  amat_55 = v * Psi * cs_local * (abs(bdotn_normalized)*particle_sbc_scale + sh_floor) * BigR * dl * theta * tstep
                   ELM(ij5,kl5) = ELM(ij5,kl5) + amat_55 * wgauss(ms)
                 endif
                 
