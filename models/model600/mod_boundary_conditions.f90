@@ -469,7 +469,7 @@ do i=1, n_local_elms !=== do elements
 
           ! --- Apply Smoothing?
           c_1 = vpar_smoothing_coef(1); c_2 = vpar_smoothing_coef(2); c_3 = vpar_smoothing_coef(3)
-          if ((vpar_smoothing) .and. (bn_1*bn_2 .lt. 0.d0)) then
+          if ((vpar_smoothing) .and. ((bn_1*bn_2 .lt. 0.d0) .or. (c_2 .le. 0.d0))) then   ! 183-vs-600: tanh at all nodes
             if (c_2 .gt. 0d0) then
               factor    = 0.25d0 * ( 1.d0 + tanh( (abs(bn) - c_1) / c_2 ) )**2 - c_3
               factor_b  = 0.5d0  * ( 1.d0 + tanh( (abs(bn) - c_1) / c_2 ) )           & 
